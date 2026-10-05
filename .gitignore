@@ -1,0 +1,51 @@
+# Credentials. .env is never committed; .env.example is the blank template.
+.env
+.env.*
+!.env.example
+
+# Everything below is per-install runtime state, not source.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Learned per-person memory. Real people's details - never commit.
+memory/*.md
+memory/conversations.json
+!memory/.gitkeep
+
+# Affection scores and who the crush currently is.
+affinity/*.json
+!affinity/.gitkeep
+
+# Owner-only file, and the Discord user id that grants access to it.
+private/
+
+# Reset backups - copies of everything above.
+backups/
+
+# Per-day model call logs - token counts and spend.
+usage/*.jsonl
+!usage/.gitkeep
+
+# Scratch: half-written files and bot logs.
+tmp/
+
+# Manual probes. They poke a live bot or a running server, so they are run by
+# hand with `python tests/probe_*.py` and are not part of the test suite.
+tests/probe_*.py
+
+# Rebuilt from the provider APIs on demand.
+cache/
+
+# Her uploaded picture. Whoever runs this adds their own.
+yuyu/dashboard/templates/portrait.*
+
+*.log
+
+# Single-instance lock - holds the pid of the running bot.
+.yuyu.lock
+
+.DS_Store
+Thumbs.db

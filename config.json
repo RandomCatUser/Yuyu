@@ -1,0 +1,293 @@
+{
+  "bot": {
+    "name": "Yuyu",
+    "prefix": "!",
+    "personaFile": "persona.md",
+    "presence": {
+      "status": "online",
+      "type": "watching",
+      "name": "Hmm, Interesting...",
+      "details": " {activity}",
+      "state": "{prefix}help for commands",
+      "largeImage": "",
+      "largeText": "",
+      "smallImage": "",
+      "smallText": ""
+    }
+  },
+  "model": {
+    "_comment": "Provider order is primary first, then automatic fallbacks. Each free model is its own entry so an out-of-quota model is cooled down on its own id and the chain rolls on to the next free model. Add an OpenAI-compatible API by adding a provider and its API key variable to .env.",
+    "default": "gemini",
+    "providers": [
+      {
+        "id": "gemini",
+        "name": "Gemini 3.1 Flash-Lite",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.1-flash-lite",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "apiKeyEnvPrefix": "GEMINI_API_KEY_",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3.5-flash-lite",
+        "name": "Gemini 3.5 Flash-Lite",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.5-flash-lite",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-flash-lite-latest",
+        "name": "Gemini Flash-Lite (latest)",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-flash-lite-latest",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3-flash-preview",
+        "name": "Gemini 3 Flash Preview",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3-flash-preview",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3.5-flash",
+        "name": "Gemini 3.5 Flash",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.5-flash",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3.6-flash",
+        "name": "Gemini 3.6 Flash",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.6-flash",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3.7-flash",
+        "name": "Gemini 3.7 Flash",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.7-flash",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3.8-flash",
+        "name": "Gemini 3.8 Flash",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.8-flash",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-3.1-flash-lite-preview",
+        "name": "Gemini 3.1 Flash-Lite Preview",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-3.1-flash-lite-preview",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-gemma-4-31b-it",
+        "name": "Gemma 4 31B (Gemini)",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemma-4-31b-it",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "gemini-gemma-4-26b-a4b-it",
+        "name": "Gemma 4 26B (Gemini)",
+        "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemma-4-26b-a4b-it",
+        "apiKeyEnv": "GEMINI_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "openrouter",
+        "name": "OpenRouter Nemotron 3 Ultra",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "apiKeyEnvPrefix": "OPENROUTER_API_KEY_",
+        "enabled": true
+      },
+      {
+        "id": "openrouter-lightning",
+        "name": "OpenRouter Nemotron 3.5 Lightning",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "nvidia/nemotron-3.5-lightning:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "openrouter-super",
+        "name": "OpenRouter Nemotron 3 Super",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "openrouter-gemma-31b",
+        "name": "OpenRouter Gemma 4 31B",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "google/gemma-4-31b-it:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "openrouter-gemma-26b",
+        "name": "OpenRouter Gemma 4 26B",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "google/gemma-4-26b-a4b-it:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "openrouter-laguna",
+        "name": "OpenRouter Laguna S",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "poolside/laguna-s-2.1:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "openrouter-lfm",
+        "name": "OpenRouter LFM 2.5 2.6B",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "model": "liquid/lfm-2.5-2.6b:free",
+        "apiKeyEnv": "OPENROUTER_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "groq",
+        "name": "Groq",
+        "baseUrl": "https://api.groq.com/openai/v1",
+        "model": "llama-3.3-70b-versatile",
+        "apiKeyEnv": "GROQ_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "cerebras",
+        "name": "Cerebras",
+        "baseUrl": "https://api.cerebras.ai/v1",
+        "model": "llama-3.3-70b",
+        "apiKeyEnv": "CEREBRAS_API_KEY",
+        "enabled": true
+      },
+      {
+        "id": "sambanova",
+        "name": "SambaNova",
+        "baseUrl": "https://api.sambanova.ai/v1",
+        "model": "gemma-4-31B-it",
+        "apiKeyEnv": "SAMBANOVA_API_KEY",
+        "apiKeyEnvPrefix": "SAMBANOVA_API_KEY_",
+        "enabled": true
+      }
+    ],
+    "maxTokens": 800,
+    "temperature": 0.95,
+    "requestTimeoutMs": 120000
+  },
+  "memory": {
+    "enabled": true,
+    "autoExtract": true,
+    "extractCooldownMs": 15000,
+    "maxFactsPerExtraction": 5,
+    "maxFactsPerFile": 60
+  },
+  "context": {
+    "maxMessages": 30,
+    "promptMessages": 12,
+    "summaryIntervalMinutes": 30,
+    "summaryKeepRecentMessages": 8,
+    "summaryMaxChars": 1200,
+    "ttlMinutes": 240,
+    "maxPeopleInPrompt": 8,
+    "maxSkillFiles": 4
+  },
+  "behavior": {
+    "typingIndicator": true,
+    "humanDelay": true,
+    "maxReplyChars": 1900,
+    "respondToNameAnywhere": true,
+    "respondInGuildsWithoutMention": false
+  },
+  "private": {
+    "enabled": true,
+    "ownerIds": [],
+    "profileFile": "private/owner.md",
+    "profileTitle": "Private profile"
+  },
+  "emoji": {
+    "reactions": false,
+    "reactionChance": 0.35,
+    "stickers": true,
+    "stickerChance": 0.18,
+    "autoDiscoverServerEmoji": true,
+    "stickersFile": "stickers.json"
+  },
+  "formatting": {
+    "allowCards": true,
+    "cardHint": true
+  },
+  "affinity": {
+    "enabled": true,
+    "eligiblePronouns": [
+      "he/him",
+      "xe/xim"
+    ],
+    "crushBehaviours": true,
+    "romanceThreshold": 40,
+    "crushSwitchMargin": 20,
+    "romanceFloor": 25,
+    "decayWarmthPerDay": 1.5,
+    "decayFamiliarityPerDay": 0.35,
+    "decayRomancePerDay": 0.7,
+    "injectPrompt": true,
+    "warmthRecoverScale": 0.85,
+    "warmthLossScale": 1.25,
+    "streakBonus": 0.3,
+    "badStreakBonus": 0.45,
+    "feelings": true,
+    "feelingHalfLifeMinutes": 120,
+    "crush": true
+  },
+  "bond": {
+    "enabled": true,
+    "ownerIds": [],
+    "lowThreshold": -35,
+    "lowTurnsNeeded": 1,
+    "betterThreshold": 10,
+    "graceTurns": 2,
+    "caringMinutes": 120,
+    "levelGain": 0.9,
+    "checkInCooldownMinutes": 90
+  },
+  "dashboard": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 7373,
+    "openBrowser": true
+  },
+  "limits": {
+    "maxReplyChars": 1900,
+    "maxMessageChars": 2000,
+    "maxConcurrentGenerations": 2
+  },
+  "usage": {
+    "enabled": true,
+    "keepDays": 90,
+    "streamUsage": true,
+    "prices": {}
+  },
+  "setup": {
+    "wizardDismissed": false
+  }
+}

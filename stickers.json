@@ -1,0 +1,26 @@
+{
+  "_comment": "Custom emoji and reactions. Bots cannot send real Discord stickers, so this drives reactions and reply emoji instead. Custom emoji use the form <:name:id> or <a:name:id> for animated - copy them with \\< and the bot will show the ID. Anything listed here works in any server; on top of this the bot auto-discovers every custom emoji in servers it is in and uses a matching one when the topic comes up.",
+
+  "reactions": [
+    { "emoji": "😂", "when": ["lol", "lmao", "haha", "funny", "laughing", "😂"] },
+    { "emoji": "💀", "when": ["dead", "dying", "killed", "💀"] },
+    { "emoji": "🔥", "when": ["fire", "hot", "burn", "goated", "based", "🔥"] },
+    { "emoji": "😮", "when": ["wow", "whoa", "no way", "damn", "😮"] },
+    { "emoji": "👀", "when": ["looking", "watching", "sus", "👀"] },
+    { "emoji": "✅", "when": ["done", "works", "fixed", "finally", "✅"] },
+    { "emoji": "🧠", "when": ["model", "eval", "training", "latency", "🧠"] },
+    { "emoji": "☕", "when": ["coffee", "tired", "exhausted", "☕"] },
+    { "emoji": "🎮", "when": ["game", "games", "gaming", "roguelike", "🎮"] },
+    { "emoji": "💀", "when": ["stupid", "dumb", "burn", "ouch"], "chance": 0.4 }
+  ],
+
+  "sticker": [
+    { "emoji": "☕", "keywords": ["morning", "tired", "coffee"] },
+    { "emoji": "🌙", "keywords": ["night", "late", "sleep", "3am"] },
+    { "emoji": "🧠", "keywords": ["model", "eval", "training", "latency"] },
+    { "emoji": "🎮", "keywords": ["game", "games", "playing", "roguelike"] },
+    { "emoji": "💀", "keywords": ["dead", "dying", "pain", "suffering"] }
+  ],
+
+  "default": ["☕", "🧠", "👀"]
+}

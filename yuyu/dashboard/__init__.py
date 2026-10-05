@@ -1,0 +1,1 @@
+"""Flask control panel package."""

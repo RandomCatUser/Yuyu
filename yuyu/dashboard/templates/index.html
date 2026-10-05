@@ -1,0 +1,4745 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#08090b" />
+<!-- Her picture doubles as the tab icon; the panel falls back to the initial
+     badge if it ever goes missing. -->
+<link rel="icon" href="/portrait" />
+<title>Yuyu - control</title>
+<style>
+  /* JetBrains Mono, self-hosted. The panel is loopback-only and must render the
+     same offline, so the two latin subsets sit next to this file rather than
+     being fetched from a font CDN. Anything outside them (her name, someone's
+     name in a memory file) falls through to the system mono in --mono. */
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("/fonts/jbmono-latin.woff2") format("woff2");
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+      U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+      U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url("/fonts/jbmono-latin-ext.woff2") format("woff2");
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+      U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+      U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+
+  :root {
+    --bg: #08090b;
+    --bg-2: #0b0d10;
+    --panel: #111319;
+    --panel-2: #161920;
+    --panel-3: #1d212a;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-2: rgba(255, 255, 255, 0.13);
+    --ink: #eef1f6;
+    --ink-2: #a4acbb;
+    --ink-3: #6e7686;
+    --accent: #6b7bff;
+    --accent-2: #9c6bff;
+    --accent-ink: #bcc4ff;
+    --wash: rgba(107, 123, 255, 0.12);
+    --ok: #40d39c;
+    --warn: #ffb45c;
+    --bad: #ff6070;
+    --star: #ffc857;
+    /* One family everywhere: this is a control panel, so it reads as terminal
+       type rather than prose. --mono is kept as the name everything already
+       refers to, and carries the fallbacks for glyphs JetBrains Mono omits. */
+    --sans: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono",
+            Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Cascadia Mono",
+            Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --top: 52px;
+    --rail: 218px;
+    --rail-r: 190px;
+    --r-sm: 8px;
+    --r: 12px;
+    --r-lg: 16px;
+    --gap: 12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* One soft aurora behind everything, so the flat panels have something to
+     sit on. Fixed, so it never scrolls with the page. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(880px 460px at 8% -10%, rgba(107, 123, 255, 0.13), transparent 62%),
+      radial-gradient(720px 420px at 96% -6%, rgba(156, 107, 255, 0.09), transparent 60%);
+  }
+  h1, h2, h3, h4, p, figure, ul, ol { margin: 0; }
+  ul, ol { padding-left: 18px; }
+  a { color: inherit; text-decoration: none; }
+  b, strong { font-weight: 650; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+  ::selection { background: rgba(107, 123, 255, 0.34); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #23272f; border: 3px solid var(--bg); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2f343e; }
+
+  .mono { font-family: var(--mono); }
+  .hint { color: var(--ink-3); font-size: 12px; line-height: 1.55; }
+  .mb-0 { margin-bottom: 0; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .spread { justify-content: space-between; }
+  .grow { flex: 1 1 190px; min-width: 0; }
+  .grid { display: grid; gap: 10px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gauto { grid-template-columns: repeat(auto-fit, minmax(216px, 1fr)); }
+
+  /* --- boot ---------------------------------------------------------------- */
+  /* There is no login to wait for, so this only shows while the first snapshot
+     is on its way - and becomes the error box if that snapshot never lands. */
+  .boot {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 100vh;
+    text-align: center;
+  }
+  .boot-mark {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: linear-gradient(140deg, var(--accent), var(--accent-2));
+    box-shadow: 0 12px 34px rgba(107, 123, 255, 0.38);
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    animation: pulse 1.9s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.93); opacity: 0.72; }
+  }
+  .boot b { font-size: 15px; font-weight: 600; }
+
+  /* --- top bar ------------------------------------------------------------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    height: var(--top);
+    background: rgba(8, 9, 11, 0.76);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-in {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 18px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brandmark {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 9px;
+    background: linear-gradient(140deg, var(--accent), var(--accent-2));
+    box-shadow: 0 5px 16px rgba(107, 123, 255, 0.36);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  /* Her picture sits over the gradient badge; the initial underneath is what
+     shows if the file is missing or fails to load. */
+  .brandmark img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .brand-text { display: flex; align-items: baseline; gap: 8px; }
+  .brand-text b { font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; }
+  .brand-text small {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .model-pick { display: flex; align-items: center; gap: 8px; }
+  #modelsel { width: auto; max-width: 264px; height: 34px; font-size: 12.5px; }
+
+  /* --- shell --------------------------------------------------------------- */
+  .shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    align-items: start;
+  }
+  .main { min-width: 0; }
+  /* Wide and tight. A control panel earns its space by showing more of the
+     table per screen, not by centring a narrow column in a lot of margin. */
+  .page { max-width: 1340px; margin: 0 auto; padding: 18px 22px 64px; }
+
+  .rail {
+    position: sticky;
+    top: var(--top);
+    height: calc(100vh - var(--top));
+    display: flex;
+    flex-direction: column;
+    padding: 16px 14px 14px;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .rail-label {
+    padding: 14px 10px 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .rail-group:first-child .rail-label { padding-top: 2px; }
+  .rail-list { display: grid; gap: 2px; }
+  .rail-list a {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--r-sm);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    transition: background 0.14s, color 0.14s;
+  }
+  /* The active marker lives in the gutter, on the rail's own edge. */
+  .rail-list a::before {
+    content: "";
+    position: absolute;
+    left: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 0;
+    border-radius: 2px;
+    background: var(--accent);
+    transition: height 0.18s ease;
+  }
+  .rail-list a:hover { background: rgba(255, 255, 255, 0.045); color: var(--ink); }
+  .rail-list a[aria-current="true"] { background: var(--wash); color: #fff; }
+  .rail-list a[aria-current="true"]::before { height: 18px; }
+  .nav-n {
+    margin-left: auto;
+    padding: 0 7px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--ink-3);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  .rail-list a[aria-current="true"] .nav-n { background: rgba(255, 255, 255, 0.12); color: var(--ink-2); }
+  .rail-foot {
+    margin-top: auto;
+    padding: 14px 10px 2px;
+    border-top: 1px solid var(--line);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--ink-3);
+  }
+
+  .toc {
+    position: sticky;
+    top: var(--top);
+    max-height: calc(100vh - var(--top));
+    padding: 28px 8px 40px 22px;
+    border-left: 1px solid var(--line);
+    overflow-y: auto;
+  }
+  .toc:empty { display: none; }
+  .toc-label {
+    margin-bottom: 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .toc a {
+    display: block;
+    padding: 5px 0 5px 12px;
+    border-left: 1px solid var(--line);
+    font-size: 12.5px;
+    line-height: 1.4;
+    color: var(--ink-3);
+    transition: color 0.14s, border-color 0.14s;
+  }
+  .toc a:hover { color: var(--ink-2); }
+  .toc a[aria-current="true"] { color: var(--ink); border-left-color: var(--accent); }
+
+  /* --- page furniture ------------------------------------------------------ */
+  .page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .page-head-main { min-width: 0; }
+  .eyebrow {
+    margin-bottom: 7px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    font-weight: 650;
+  }
+  .page-head h1 {
+    font-size: 23px;
+    font-weight: 650;
+    letter-spacing: -0.032em;
+    line-height: 1.12;
+  }
+  .lede { margin-top: 7px; max-width: 72ch; font-size: 13px; color: var(--ink-2); text-wrap: pretty; }
+  .page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* The overview is the one page that introduces her, so it wears her picture
+     at a size worth looking at. Same portrait as the topbar badge. */
+  .page-head.with-portrait { align-items: center; }
+  .page-head-body { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .page-head-portrait {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid var(--line-2);
+    border-radius: 18px;
+    background: linear-gradient(140deg, var(--accent), var(--accent-2));
+    box-shadow: 0 10px 30px rgba(107, 123, 255, 0.26);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .page-head-portrait img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .panel {
+    position: relative;
+    margin-bottom: var(--gap);
+    padding: 13px 15px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.016), transparent 130px), var(--panel);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    scroll-margin-top: calc(var(--top) + 12px);
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .panel-head h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .panel-meta { font-size: 12px; color: var(--ink-3); text-align: right; }
+  .panel.accent {
+    border-color: rgba(107, 123, 255, 0.32);
+    background: linear-gradient(180deg, rgba(107, 123, 255, 0.07), transparent 170px), var(--panel);
+  }
+  .panel.warn {
+    border-color: rgba(255, 180, 92, 0.32);
+    background: linear-gradient(180deg, rgba(255, 180, 92, 0.07), transparent 170px), var(--panel);
+  }
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+    gap: 8px;
+    margin-bottom: var(--gap);
+  }
+  .tile {
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--panel);
+  }
+  .tile .k {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .tile .v {
+    margin: 5px 0 2px;
+    font-size: 18px;
+    font-weight: 640;
+    letter-spacing: -0.022em;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .tile .s { font-size: 11px; color: var(--ink-3); line-height: 1.4; }
+
+  .kv { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .kv-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 6px 12px;
+    background: var(--panel);
+    font-size: 12.5px;
+  }
+  .kv-row .k { color: var(--ink-3); flex-shrink: 0; }
+  .kv-row .v { color: var(--ink); text-align: right; overflow-wrap: anywhere; }
+
+  .notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: var(--gap);
+    padding: 9px 13px;
+    border: 1px solid rgba(255, 180, 92, 0.28);
+    border-radius: var(--r);
+    background: rgba(255, 180, 92, 0.07);
+    color: var(--ink-2);
+    font-size: 13px;
+  }
+  .notice .dot { width: 7px; height: 7px; margin-top: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--warn); }
+  .notice.info { border-color: rgba(107, 123, 255, 0.28); background: rgba(107, 123, 255, 0.07); }
+  .notice.info .dot { background: var(--accent); }
+  .notice b { color: var(--ink); }
+
+  .empty {
+    padding: 22px 18px;
+    border: 1px dashed var(--line-2);
+    border-radius: var(--r);
+    text-align: center;
+    color: var(--ink-3);
+    font-size: 13px;
+  }
+  .empty b { display: block; margin-bottom: 6px; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+
+  /* --- chips --------------------------------------------------------------- */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--ink-2);
+    font-size: 11.5px;
+    font-weight: 550;
+    white-space: nowrap;
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.ok { color: var(--ok); border-color: rgba(64, 211, 156, 0.3); background: rgba(64, 211, 156, 0.1); }
+  .chip.warn { color: var(--warn); border-color: rgba(255, 180, 92, 0.3); background: rgba(255, 180, 92, 0.1); }
+  .chip.bad { color: var(--bad); border-color: rgba(255, 96, 112, 0.3); background: rgba(255, 96, 112, 0.1); }
+  .chip.accent { color: var(--accent-ink); border-color: rgba(107, 123, 255, 0.34); background: var(--wash); }
+  .chip.star { color: var(--star); border-color: rgba(255, 200, 87, 0.32); background: rgba(255, 200, 87, 0.1); }
+  .chip.code { font-family: var(--mono); font-size: 11px; }
+
+  /* --- buttons ------------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: var(--panel-2);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 550;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.14s, border-color 0.14s, color 0.14s, opacity 0.14s;
+  }
+  .btn:hover { background: var(--panel-3); border-color: rgba(255, 255, 255, 0.2); }
+  .btn-primary {
+    background: linear-gradient(180deg, #7b88ff, #5a68ee);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(107, 123, 255, 0.26);
+  }
+  .btn-primary:hover { background: linear-gradient(180deg, #8b96ff, #6472f5); }
+  .btn-ghost { background: transparent; border-color: var(--line-2); color: var(--ink-2); }
+  .btn-ghost:hover { background: rgba(255, 255, 255, 0.04); color: var(--ink); }
+  .btn-danger { background: transparent; border-color: rgba(255, 96, 112, 0.38); color: var(--bad); }
+  .btn-danger:hover { background: rgba(255, 96, 112, 0.1); border-color: rgba(255, 96, 112, 0.6); }
+  .btn-sm { height: 28px; padding: 0 11px; font-size: 12px; border-radius: 7px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--panel-2);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition: background 0.14s, color 0.14s;
+  }
+  .icon-btn:hover { background: var(--panel-3); color: var(--ink); }
+  .nav-toggle { display: none; }
+
+  /* --- forms --------------------------------------------------------------- */
+  input, textarea, select {
+    width: 100%;
+    height: 34px;
+    padding: 0 11px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.14s, box-shadow 0.14s;
+  }
+  input::placeholder, textarea::placeholder { color: #5b6373; }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--wash);
+  }
+  select { cursor: pointer; padding-right: 8px; }
+  input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  textarea {
+    height: auto;
+    padding: 12px 13px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.75;
+    resize: vertical;
+  }
+  .field { display: grid; gap: 6px; }
+  .field > label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .field .hint { margin: 0; }
+
+  /* A number that saves itself when you let go of it. The filled part of the
+     track is drawn from --fill, which the knob sets as a percentage. */
+  .slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    --track: var(--accent);
+  }
+  .slider:focus-visible { outline: none; box-shadow: none; }
+  .slider:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--wash); }
+  .slider.pos { --track: var(--ok); }
+  .slider.neg { --track: var(--bad); }
+  .slider.hot { --track: var(--warn); }
+  .slider.cold { --track: #6d8ddb; }
+  .slider::-webkit-slider-runnable-track {
+    height: 5px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--track) 0 var(--fill, 50%), var(--panel-3) var(--fill, 50%) 100%);
+  }
+  .slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    margin-top: -5px;
+    border: 0;
+    border-radius: 50%;
+    background: #e9ecf3;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.6);
+    transition: transform 0.12s ease;
+  }
+  .slider:hover::-webkit-slider-thumb { transform: scale(1.12); }
+  .slider::-moz-range-track {
+    height: 5px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--track) 0 var(--fill, 50%), var(--panel-3) var(--fill, 50%) 100%);
+  }
+  .slider::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border: 0;
+    border-radius: 50%;
+    background: #e9ecf3;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.6);
+  }
+
+  .toggle {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 1px solid var(--line-2);
+    border-radius: 99px;
+    background: var(--panel-3);
+    cursor: pointer;
+    transition: background 0.16s, border-color 0.16s;
+  }
+  .toggle i {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    transition: transform 0.16s ease, background 0.16s ease;
+  }
+  .toggle.on { background: rgba(64, 211, 156, 0.28); border-color: rgba(64, 211, 156, 0.55); }
+  .toggle.on i { transform: translateX(16px); background: var(--ok); }
+  .toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* --- toasts -------------------------------------------------------------- */
+  .toast-container {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 60;
+    display: grid;
+    gap: 8px;
+    width: min(360px, calc(100vw - 32px));
+  }
+  .toast-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 14px;
+    border: 1px solid var(--line-2);
+    border-left: 2px solid var(--ok);
+    border-radius: var(--r-sm);
+    background: var(--panel-2);
+    color: var(--ink);
+    font-size: 13px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    animation: toast-in 0.24s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+  .toast-item.err { border-left-color: var(--bad); }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* --- overview ------------------------------------------------------------ */
+  .go {
+    display: grid;
+    gap: 3px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--panel-2);
+    color: var(--ink);
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.14s, background 0.14s, transform 0.14s;
+  }
+  .go:hover { border-color: rgba(107, 123, 255, 0.55); background: rgba(107, 123, 255, 0.09); transform: translateY(-1px); }
+  .go b { font-size: 13.5px; font-weight: 600; }
+  .go span { font-size: 12px; color: var(--ink-3); }
+
+  .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 9px; }
+  .file {
+    display: block;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--panel-2);
+    cursor: pointer;
+    transition: border-color 0.14s, background 0.14s, transform 0.14s;
+  }
+  .file:hover { border-color: rgba(107, 123, 255, 0.55); background: rgba(107, 123, 255, 0.08); transform: translateY(-1px); }
+  .file b { display: block; margin-bottom: 3px; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  .file span { display: block; font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+
+  /* --- editor -------------------------------------------------------------- */
+  .editor-area { min-height: 58vh; }
+  .bar {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    /* Bleeds to the panel edge, so these negatives have to stay in step with
+       .panel's padding above - change one without the other and the bar either
+       gaps or overhangs. */
+    margin: 10px -15px -13px;
+    padding: 9px 15px;
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 var(--r-lg) var(--r-lg);
+    background: rgba(17, 19, 25, 0.94);
+    backdrop-filter: blur(10px);
+  }
+  .bar .spacer { margin-left: auto; }
+
+  /* --- model --------------------------------------------------------------- */
+  .model-hero {
+    font-size: 25px;
+    font-weight: 650;
+    letter-spacing: -0.032em;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  /* Whoever she talks through right now, wearing the same mark as its card, one
+     step up. */
+  .model-hero-row { display: flex; align-items: center; gap: 12px; }
+  .model-hero-row .prov-mark { flex-basis: 42px; width: 42px; height: 42px; border-radius: 12px; }
+  .model-hero-row .prov-logo { width: 29px; height: 29px; }
+  .provider-list { display: grid; gap: 10px; }
+  .prov {
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--panel-2);
+    transition: border-color 0.14s;
+  }
+  .prov.open { border-color: rgba(107, 123, 255, 0.42); }
+  .prov-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 13px 15px;
+  }
+  .prov-mark {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(140deg, var(--accent), var(--accent-2));
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+  }
+  /* Once a real mark loads, the tile turns light. Half the marks we have are
+     dark ink on transparency (SambaNova is near-black purple) and would simply
+     disappear against the panel; a light chip is also just how app icons read
+     on a dark surface. Until the file arrives the tile stays a letter, so a
+     missing logo never flashes as a broken image. */
+  .prov-mark.with-logo {
+    background: #f5f6fa;
+    box-shadow: inset 0 0 0 1px rgba(16, 18, 28, 0.1);
+    overflow: hidden;
+  }
+  .prov-logo {
+    display: block;
+    width: 25px;
+    height: 25px;
+    object-fit: contain;
+  }
+  .prov-body { flex: 1 1 220px; min-width: 0; }
+  .prov-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; font-weight: 600; }
+  .prov-meta { margin-top: 3px; font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+  .prov-meta code { font-family: var(--mono); font-size: 11.5px; }
+  .prov-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .prov-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 2px;
+    padding: 11px 12px 12px;
+    border-top: 1px solid var(--line);
+  }
+  .prov-tools {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .prov-tools .spacer { margin-left: auto; }
+
+  /* --- presence ------------------------------------------------------------ */
+  .presence-preview {
+    position: relative;
+    overflow: hidden;
+    max-width: 420px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+    background: var(--panel-2);
+  }
+  .presence-banner {
+    height: 64px;
+    background: linear-gradient(120deg, var(--accent), var(--accent-2) 55%, var(--panel-3));
+  }
+  .presence-avatar {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 58px;
+    margin: -29px 0 0 16px;
+    overflow: visible;
+    border: 4px solid var(--panel-2);
+    border-radius: 50%;
+    background: linear-gradient(140deg, var(--accent), var(--accent-2));
+    color: #fff;
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .presence-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .presence-dot {
+    position: absolute;
+    right: 0;
+    bottom: 1px;
+    width: 15px;
+    height: 15px;
+    border: 3px solid var(--panel-2);
+    border-radius: 50%;
+    background: var(--ink-3);
+  }
+  .presence-dot.online { background: var(--ok); }
+  .presence-dot.idle { background: var(--warn); }
+  .presence-dot.dnd { background: var(--bad); }
+  .presence-dot.invisible { background: var(--ink-3); }
+  .presence-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 16px 0;
+    font-size: 16px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .presence-tag {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .presence-activity {
+    display: flex;
+    gap: 12px;
+    margin: 12px 16px 16px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--bg-2);
+  }
+  .presence-art-large {
+    display: grid;
+    place-items: center;
+    flex: 0 0 62px;
+    width: 62px;
+    height: 62px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: linear-gradient(140deg, var(--accent), var(--accent-2));
+    color: #fff;
+    font-size: 24px;
+    font-weight: 800;
+  }
+  .presence-art-large img { width: 100%; height: 100%; object-fit: cover; }
+  .presence-lines { flex: 1 1 auto; min-width: 0; }
+  .presence-title { font-size: 13.5px; font-weight: 650; overflow-wrap: anywhere; }
+  .presence-line { margin-top: 3px; font-size: 12.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .presence-art-small {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--panel-3);
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .presence-art-small img { width: 100%; height: 100%; object-fit: cover; }
+  .ph-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .ph-chip {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 99px;
+    background: var(--panel-2);
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: border-color 0.14s, color 0.14s, background 0.14s;
+  }
+  .ph-chip:hover { border-color: rgba(107, 123, 255, 0.55); color: var(--ink); background: rgba(107, 123, 255, 0.1); }
+  .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .presence-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    background: rgba(64, 211, 156, 0.12);
+    color: var(--ok);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .presence-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .presence-status.idle { background: rgba(255, 180, 92, 0.12); color: var(--warn); }
+  .presence-status.dnd { background: rgba(255, 96, 112, 0.12); color: var(--bad); }
+  .presence-status.invisible { background: rgba(255, 255, 255, 0.06); color: var(--ink-3); }
+
+  /* --- servers ------------------------------------------------------------- */
+  .srv {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 2px;
+    border-top: 1px solid var(--line);
+  }
+  .srv:first-child { border-top: 0; }
+  .srv-art {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--panel-3);
+    color: var(--ink-2);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .srv-art img { width: 100%; height: 100%; object-fit: cover; }
+  .srv-name { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+  .srv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  /* --- people -------------------------------------------------------------- */
+  .fact-block { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel-2); }
+  .fact-block .k {
+    margin-bottom: 6px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .fact-block .v { font-size: 13px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+  /* --- stickers ------------------------------------------------------------ */
+  .sticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
+  .sticker-item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--panel-2);
+    text-align: center;
+  }
+  .sticker-item img { width: 100%; border-radius: var(--r-sm); margin-bottom: 8px; }
+  .sticker-item b { font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+  .sticker-item span { font-size: 11px; color: var(--ink-3); }
+  .sticker-item .btn { margin-top: 8px; align-self: stretch; }
+
+  /* --- skills -------------------------------------------------------------- */
+  .skill-new { display: grid; gap: 10px; }
+  .skill-new textarea { min-height: 190px; }
+
+  /* --- reset --------------------------------------------------------------- */
+  .target-list { display: grid; }
+  .target {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 2px;
+    border-top: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .target:first-child { border-top: 0; }
+  .target:hover { background: rgba(255, 255, 255, 0.02); }
+  .target-name { font-size: 13.5px; }
+  .target .spacer { margin-left: auto; }
+  .plan { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-2); }
+  .plan h3 { margin-bottom: 10px; font-size: 13px; font-weight: 650; color: var(--bad); }
+  .plan pre {
+    max-height: 170px;
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    overflow: auto;
+    border-radius: var(--r-sm);
+    background: #05060a;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .backup-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 2px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .backup-item:first-child { border-top: 0; }
+
+  /* --- logs ---------------------------------------------------------------- */
+  .log-box {
+    max-height: 62vh;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: #05060a;
+  }
+  .log-row {
+    display: grid;
+    grid-template-columns: 74px 54px minmax(0, 1fr);
+    gap: 10px;
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    border-top: 1px solid rgba(255, 255, 255, 0.035);
+  }
+  .log-row:first-child { border-top: 0; }
+  .log-t { color: #5b6373; }
+  .log-l { color: var(--ink-3); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; padding-top: 1px; }
+  .log-l.warn { color: var(--warn); }
+  .log-l.error { color: var(--bad); }
+  .log-m { overflow-wrap: anywhere; white-space: pre-wrap; }
+
+  /* --- usage ----------------------------------------------------------------- */
+  /* The daily chart is two stacked bars per day - prompt below completion -
+     so a tall bar means a heavy day and the seam shows which half grew. Days
+     with no calls are kept as a 2px stub, so a quiet week still reads as a
+     week rather than as missing data. */
+  .usage-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 148px;
+    padding: 12px 2px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: linear-gradient(180deg, rgba(107, 123, 255, 0.05), transparent 70%), #05060a;
+    overflow-x: auto;
+  }
+  .ucol {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 9px;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+    gap: 1px;
+  }
+  .ucol .seg { min-height: 2px; border-radius: 2px 2px 0 0; }
+  .ucol .seg.prompt { background: linear-gradient(180deg, #7d8bff, #5f6ef0); }
+  .ucol .seg.completion { background: linear-gradient(180deg, #b98cff, #9c6bff); border-radius: 0; }
+  .ucol.empty-day .seg { background: #1c2029; }
+  .usage-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .usage-legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .usage-legend i {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    border-radius: 3px;
+    vertical-align: -1px;
+  }
+  .usage-legend i.prompt { background: #6f7dff; }
+  .usage-legend i.completion { background: #a678ff; }
+
+  /* One grid row per provider, reflowing to two lines on a narrow screen
+     rather than scrolling sideways. */
+  .usage-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .usage-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1.4fr) repeat(4, minmax(66px, 0.8fr)) 84px;
+    gap: 10px;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--panel);
+    font-size: 12.5px;
+  }
+  .usage-row.head {
+    background: var(--panel-2);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-3);
+    font-weight: 650;
+  }
+  .usage-row .who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .usage-row .who b { font-weight: 600; overflow-wrap: anywhere; }
+  .usage-row .num-cell { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .usage-row .num-cell.money { color: var(--ink); }
+  .usage-share { height: 3px; border-radius: 99px; background: var(--panel-3); overflow: hidden; }
+  .usage-share i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+
+  .usage-split { display: flex; height: 6px; border-radius: 99px; overflow: hidden; background: var(--panel-3); margin-top: 9px; }
+  .usage-split i.prompt { background: #6f7dff; }
+  .usage-split i.completion { background: #a678ff; }
+
+  @media (max-width: 720px) {
+    .usage-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 6px; }
+    .usage-row.head { display: none; }
+    .usage-row .who { grid-column: 1 / -1; }
+    .usage-row .num-cell { text-align: left; }
+  }
+
+  /* --- affect editor ------------------------------------------------------- */
+  /* Not a table: eight feelings per person plus three scores does not fit a
+     table on a phone. Every number gets its own row and the whole thing
+     reflows instead of scrolling sideways. No fixed widths anywhere below. */
+  .affect-card {
+    margin-bottom: 12px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--panel-2);
+  }
+  .affect-card:last-child { margin-bottom: 0; }
+  .affect-card.crush { border-color: rgba(255, 200, 87, 0.34); background: linear-gradient(180deg, rgba(255, 200, 87, 0.06), transparent 140px), var(--panel-2); }
+  .person-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .disc {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--panel-3);
+    color: var(--ink-2);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .affect-card.crush .disc { background: rgba(255, 200, 87, 0.16); color: var(--star); }
+  .who { min-width: 0; }
+  .who b { display: block; font-size: 15px; font-weight: 640; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+  .who .hint { margin-top: 2px; }
+  .person-actions { margin-left: auto; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .pronouns-in { width: 104px; height: 28px; padding: 0 9px; font-size: 12px; }
+
+  .mood-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 14px 0 4px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .balance {
+    position: relative;
+    flex: 1 1 150px;
+    max-width: 250px;
+    height: 5px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.07);
+  }
+  /* The mid-point is the neutral line; the fill grows out from it either way. */
+  .balance::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -3px;
+    width: 1px;
+    height: 11px;
+    background: var(--ink-3);
+  }
+  .balance > i {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: 99px;
+    background: var(--ok);
+    transition: width 0.25s, left 0.25s;
+  }
+  .balance.mid > i { background: var(--warn); }
+  .balance.low > i { background: var(--bad); }
+
+  .knobs { display: grid; gap: 9px; margin-top: 14px; }
+  .knob {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr) 52px;
+    align-items: center;
+    gap: 12px;
+  }
+  .knob > label { font-size: 12.5px; color: var(--ink-2); text-transform: capitalize; }
+  .knob .num {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    text-align: right;
+  }
+
+  .feelings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+    gap: 8px 22px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .feelings-grid .knob { grid-template-columns: 82px minmax(0, 1fr) 38px; }
+  .feelings-grid .knob > label { font-size: 12px; }
+
+  .why-list { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); display: grid; gap: 7px; }
+  .why-row {
+    display: grid;
+    grid-template-columns: 168px minmax(0, 1fr);
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  .why-row .deltas { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .why-row .up { color: var(--ok); }
+  .why-row .down { color: var(--bad); }
+  .why-row .what { overflow-wrap: anywhere; }
+
+  .bond-panel {
+    padding: 18px 20px;
+    border: 1px solid rgba(107, 123, 255, 0.34);
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, rgba(107, 123, 255, 0.09), transparent 170px), var(--panel);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    scroll-margin-top: calc(var(--top) + 18px);
+  }
+  .bond-panel.caring { border-color: rgba(255, 180, 92, 0.4); background: linear-gradient(180deg, rgba(255, 180, 92, 0.1), transparent 170px), var(--panel); }
+  .bond-panel h2 { margin-bottom: 12px; font-size: 15px; font-weight: 640; letter-spacing: -0.015em; }
+  .bond-panel .knobs { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 9px 22px; }
+  .bond-panel .person-actions { margin-left: auto; }
+
+  details.more { margin-top: 12px; }
+  details.more > summary {
+    cursor: pointer;
+    padding: 5px 0;
+    list-style: none;
+    user-select: none;
+    font-size: 12.5px;
+    color: var(--ink-3);
+  }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::before { content: "\203A "; color: var(--ink-3); }
+  details.more[open] > summary::before { content: "\2039 "; }
+  details.more > summary:hover { color: var(--ink-2); }
+
+  .fade-in { animation: rise 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .nav-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    transition: opacity 0.24s ease;
+  }
+  .nav-scrim.show { opacity: 1; }
+  body.nav-open { overflow: hidden; }
+
+  /* --- responsive ---------------------------------------------------------- */
+  @media (min-width: 1360px) {
+    .shell { grid-template-columns: var(--rail) minmax(0, 1fr) var(--rail-r); }
+  }
+  @media (max-width: 1100px) {
+    .toc { display: none; }
+    .page { padding: 24px 28px 90px; }
+  }
+  @media (max-width: 900px) {
+    .nav-toggle { display: inline-grid; }
+    .shell { grid-template-columns: minmax(0, 1fr); }
+    .rail {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 50;
+      width: min(292px, 84vw);
+      height: 100vh;
+      background: var(--bg);
+      transform: translateX(-100%);
+      transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: none;
+    }
+    .rail.open { transform: none; box-shadow: 26px 0 60px rgba(0, 0, 0, 0.6); }
+    .rail-list a { height: 40px; font-size: 14px; }
+    .page { padding: 14px 16px 56px; }
+    .page-head h1 { font-size: 21px; }
+    .prov-form { grid-template-columns: minmax(0, 1fr); }
+    .g2 { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 680px) {
+    :root { --top: 50px; }
+    .topbar-in { padding: 0 12px; gap: 8px; }
+    .brand-text small { display: none; }
+    .topbar-right { gap: 8px; }
+    .model-pick select { max-width: 132px; }
+    .btn { height: 32px; padding: 0 12px; }
+    .page { padding: 14px 12px 56px; }
+    .page-head { margin-bottom: 18px; }
+    .page-head h1 { font-size: 20px; }
+    .lede { font-size: 12.5px; }
+    .panel { padding: 12px 12px; border-radius: var(--r); }
+    .bar { margin: 9px -12px -12px; padding: 8px 12px; }
+    .toast-container { right: 12px; bottom: 12px; width: calc(100vw - 24px); }
+    .presence-activity { flex-direction: column; }
+    .log-row { grid-template-columns: 62px minmax(0, 1fr); }
+    .log-l { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+
+  /* The per-person affect card and the bond panel are the last things styled,
+     so their own rules (and their own small-screen fallbacks) always win over
+     the shared components above. */
+  @media (max-width: 680px) {
+    .affect-card { padding: 14px; border-radius: var(--r); }
+    .person-actions { margin-left: 0; width: 100%; }
+    .knob { grid-template-columns: 88px minmax(0, 1fr) 42px; gap: 8px; }
+    .feelings-grid .knob { grid-template-columns: 74px minmax(0, 1fr) 34px; }
+    .why-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .bond-panel { padding: 15px 14px; border-radius: var(--r); }
+    .bond-panel .knobs { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* --- first-run wizard ------------------------------------------------------ */
+  /* A full-screen overlay rather than a panel, because on a fresh clone there is
+     nothing behind it worth showing. Drawn with hidden until the page decides the
+     bot needs setting up, so a configured install never flashes it. */
+  .wizard {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: start center;
+    padding: clamp(16px, 5vh, 56px) 16px;
+    overflow-y: auto;
+    background: radial-gradient(120% 90% at 50% 0%, #12141b 0%, var(--bg) 62%);
+  }
+  .wizard[hidden] { display: none; }
+  .wiz {
+    width: 100%;
+    max-width: 560px;
+    display: grid;
+    gap: 14px;
+  }
+
+  /* Labels only - no numbers. The step row is a row of words, and a finished step
+     gets a tick from ::after so nothing has to be a nested element to hold one. */
+  .wiz-steps { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .wiz-step {
+    position: relative;
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--ink-3);
+    background: var(--panel);
+  }
+  .wiz-step[aria-current="true"] { border-color: var(--accent); color: var(--ink); background: var(--wash); }
+  .wiz-step[data-done="true"] { color: var(--ink-2); border-color: rgba(64, 211, 156, 0.28); }
+  .wiz-step[data-done="true"]::after { content: "\2713"; margin-left: 5px; color: var(--ok); }
+  /* The preview sits inside the photo step, not in a wizard-wide header. It is
+     shown only once a picture exists or has been picked, so the step reads as a
+     form until there is something to see. */
+  .wiz-shot {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 1px solid var(--line-2);
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+  .wiz-shot[hidden] { display: none; }
+  .wiz-shot img { width: 100%; height: 100%; object-fit: cover; }
+
+  .wiz-body {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--panel);
+  }
+  .wiz-body[hidden] { display: none; }
+  .wiz-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .wiz-foot .spacer { flex: 1; }
+  .wiz-note {
+    display: grid;
+    gap: 4px;
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .wiz-note.bad { border-left-color: var(--bad); }
+  .wiz-note.ok { border-left-color: var(--ok); }
+  .wiz-note code { font-family: var(--mono); color: var(--ink); }
+  /* The provider presets. Kept to a short list of real OpenAI-compatible
+     services so the common case is one tap, with the full form below for
+     anything else. */
+  .wiz-presets { display: flex; flex-wrap: wrap; gap: 7px; }
+  .wiz-preset {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: var(--panel-2);
+    color: var(--ink-2);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .wiz-preset:hover { background: var(--panel-3); color: var(--ink); }
+  .wiz-preset[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--wash); }
+  .wiz-preset img, .wiz-preset svg { width: 15px; height: 15px; object-fit: contain; }
+  .wiz-drop {
+    display: grid;
+    place-items: center;
+    gap: 6px;
+    padding: 22px 14px;
+    border: 1px dashed var(--line-2);
+    border-radius: var(--r);
+    background: var(--bg-2);
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .wiz-drop.over { border-color: var(--accent); background: var(--wash); color: var(--ink-2); }
+  .wiz-tally { display: grid; gap: 7px; }
+  .wiz-tally-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .wiz-tally-row i {
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-style: normal;
+    flex: none;
+  }
+  .wiz-tally-row[data-ok="true"] i { background: rgba(64, 211, 156, 0.16); color: var(--ok); }
+  .wiz-tally-row[data-ok="false"] i { background: rgba(255, 180, 92, 0.16); color: var(--warn); }
+  /* The Portal extras, folded away. They are needed for the invite link and for
+     signature checks but not to run her, so they should not be three more fields
+     sitting in the middle of first-run setup. */
+  .wiz-more {
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    padding: 10px 12px;
+  }
+  .wiz-more > summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ink-2);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .wiz-more > summary::-webkit-details-marker { display: none; }
+  .wiz-more > summary::before { content: "+"; color: var(--ink-3); font-weight: 700; }
+  .wiz-more[open] > summary::before { content: "\2212"; }
+  .wiz-more > summary:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<!-- First-run setup. Hidden by default and only revealed by the page once
+     /api/setup says she has no working model, so an install that is already
+     configured never sees it. Also reachable later from the Overview tab, which
+     is what makes it useful for adding a provider or a photo after the fact. -->
+<div class="wizard" id="wizard" hidden role="dialog" aria-modal="true"
+     aria-label="Set her up">
+  <div class="wiz">
+    <div class="wiz-steps" id="wiz-steps" role="list"></div>
+
+    <!-- 1 - name ------------------------------------------------------------ -->
+    <div class="wiz-body" id="wiz-step-name" hidden>
+      <div class="field">
+        <label for="wiz-botname">What do you want to call her?</label>
+        <input id="wiz-botname" type="text" maxlength="32" placeholder="Yuyu"
+               autocomplete="off" spellcheck="false" />
+        <p class="hint">This is what people type to talk to her, and what she
+          introduces herself as. You can change it later.</p>
+      </div>
+      <label class="row" style="font-size:12.5px;color:var(--ink-2);cursor:pointer">
+        <input type="checkbox" id="wiz-name-discord" />
+        <span>Also rename her Discord account to match</span>
+      </label>
+      <p class="hint" id="wiz-name-live"></p>
+    </div>
+
+    <!-- 2 - provider -------------------------------------------------------- -->
+    <div class="wiz-body" id="wiz-step-provider" hidden>
+      <div class="field">
+        <label>Pick a service to talk to</label>
+        <div class="wiz-presets" id="wiz-presets"></div>
+        <p class="hint">Any OpenAI-compatible service works. Free tiers are fine
+          &mdash; the bot falls through to the next one when one runs out.</p>
+      </div>
+      <div class="grid">
+        <div class="field">
+          <label for="wiz-base">Base URL</label>
+          <input id="wiz-base" type="text" placeholder="https://api.groq.com/openai/v1" />
+        </div>
+        <div class="row">
+          <div class="field" style="flex:1">
+            <label for="wiz-model">Model</label>
+            <input id="wiz-model" type="text" placeholder="llama-3.3-70b-versatile" />
+          </div>
+          <div class="field" style="flex:1">
+            <label for="wiz-env">Key goes in</label>
+            <input id="wiz-env" type="text" placeholder="GROQ_API_KEY" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="wiz-key">API key</label>
+          <input id="wiz-key" type="password" placeholder="paste it here"
+                 autocomplete="off" spellcheck="false" />
+          <p class="hint">Written to <code>.env</code> in this folder, never to
+            config.json. It is never read back out &mdash; you will only ever be
+            told whether one is present.</p>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-sm" id="wiz-fetch-models">List their models</button>
+        <span class="hint" id="wiz-fetch-note"></span>
+      </div>
+      <div class="field" id="wiz-model-pick-field" hidden>
+        <label for="wiz-model-pick">Or pick one from their list</label>
+        <select id="wiz-model-pick"></select>
+      </div>
+      <div id="wiz-provider-note"></div>
+    </div>
+
+    <!-- 3 - picture --------------------------------------------------------- -->
+    <div class="wiz-body" id="wiz-step-photo" hidden>
+      <div class="field">
+        <label>Give her a face</label>
+        <span class="wiz-shot" id="wiz-photo-preview" hidden aria-live="polite">
+          <img alt="" decoding="async" onerror="this.closest('.wiz-shot').hidden = true;" />
+        </span>
+        <label class="wiz-drop" id="wiz-drop" for="wiz-file-2">
+          <span id="wiz-drop-text">Drop an image here, or click to choose</span>
+          <span class="hint">PNG, JPG, WebP or GIF, up to 8&nbsp;MB. Square works best.</span>
+        </label>
+        <input type="file" id="wiz-file-2" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+      </div>
+      <div class="field">
+        <label for="wiz-token">Discord bot token</label>
+        <input id="wiz-token" type="password" placeholder="paste the token"
+               autocomplete="off" spellcheck="false" />
+        <p class="hint">Developer Portal &rarr; your app &rarr; Bot &rarr;
+          &ldquo;Reset Token&rdquo;. Without it she cannot connect at all. You can
+          paste this later instead.</p>
+      </div>
+      <div class="field">
+        <label for="wiz-owner">Your Discord user ID</label>
+        <input id="wiz-owner" type="text" inputmode="numeric" placeholder="123456789012345678"
+               autocomplete="off" spellcheck="false" />
+        <p class="hint">Makes you the owner, so <code>!secret.me</code>, <code>!affinity</code>
+          and <code>!wipe</code> work for you and nobody else. Turn on
+          <b>Settings &rarr; Advanced &rarr; Developer Mode</b>, then right-click yourself
+          and choose Copy User ID. Left empty, every owner-only command stays refused.</p>
+      </div>
+      <details class="wiz-more" id="wiz-discord-more">
+        <summary>Developer Portal details <span class="hint">&mdash; only needed to build the invite link</span></summary>
+        <div class="grid" style="margin-top:10px">
+          <div class="field">
+            <label for="wiz-appid">Application ID</label>
+            <input id="wiz-appid" type="text" inputmode="numeric"
+                   placeholder="1234567890123456789" autocomplete="off" spellcheck="false" />
+            <p class="hint">Developer Portal &rarr; General Information. Public, not a secret.</p>
+          </div>
+          <div class="field">
+            <label for="wiz-pubkey">Public key</label>
+            <input id="wiz-pubkey" type="text" placeholder="64 hex characters"
+                   autocomplete="off" spellcheck="false" />
+            <p class="hint">Used to verify interaction signatures. Also public.</p>
+          </div>
+          <div class="field">
+            <label for="wiz-secret">Client secret <span class="hint">- optional</span></label>
+            <input id="wiz-secret" type="password" placeholder="only if you want the install link built"
+                   autocomplete="off" spellcheck="false" />
+            <p class="hint">OAuth2 only. This cannot log a bot in, so it is never required.</p>
+          </div>
+        </div>
+      </details>
+      <div id="wiz-photo-note"></div>
+    </div>
+
+    <!-- done ---------------------------------------------------------------- -->
+    <div class="wiz-body" id="wiz-step-done" hidden>
+      <div class="wiz-tally" id="wiz-tally"></div>
+      <div id="wiz-done-note"></div>
+      <div class="wiz-note">
+        Start her with <code>python main.py</code>. The panel closes over on
+        <code>127.0.0.1:7373</code> whenever the bot runs.
+      </div>
+    </div>
+
+    <div class="wiz-foot">
+      <button class="btn btn-ghost" id="wiz-back">Back</button>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" id="wiz-skip">Skip for now</button>
+      <button class="btn btn-primary" id="wiz-next">Next</button>
+    </div>
+  </div>
+</div>
+
+<div id="boot" class="boot">
+  <span class="boot-mark" aria-hidden="true">Y</span>
+  <b>waking her up&hellip;</b>
+  <span class="hint">reading her files</span>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-in">
+      <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M2 4.5h14M2 9h14M2 13.5h14" />
+        </svg>
+      </button>
+      <div class="brand">
+        <span class="brandmark" aria-hidden="true">
+          <span id="brandface">Y</span>
+          <img id="brandimg" src="/portrait" alt="" decoding="async" onerror="this.remove()" />
+        </span>
+        <span class="brand-text">
+          <b id="brandname">Yuyu</b>
+          <small>control</small>
+        </span>
+      </div>
+      <div class="topbar-right">
+        <span class="chip" id="crushpill"></span>
+        <div class="model-pick">
+          <select id="modelsel" aria-label="model to use"></select>
+          <button class="btn btn-primary btn-sm" id="modelgo">Use</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="nav-scrim" id="nav-scrim" hidden></div>
+
+  <div class="shell">
+    <nav class="rail" id="side-nav" aria-label="Dashboard sections">
+      <div class="rail-group">
+        <p class="rail-label">Overview</p>
+        <div class="rail-list">
+          <a href="#overview" data-nav="overview">Overview</a>
+          <a href="#model" data-nav="model">Model</a>
+          <a href="#usage" data-nav="usage">Usage</a>
+          <a href="#presence" data-nav="presence">Presence</a>
+          <a href="#servers" data-nav="servers">Servers</a>
+        </div>
+      </div>
+      <div class="rail-group">
+        <p class="rail-label">Relationships</p>
+        <div class="rail-list">
+          <a href="#affinity" data-nav="affinity">Affect</a>
+          <a href="#people" data-nav="people">People</a>
+        </div>
+      </div>
+      <div class="rail-group">
+        <p class="rail-label">Content</p>
+        <div class="rail-list">
+          <a href="#skills" data-nav="skills">Skills</a>
+          <a href="#persona" data-nav="persona">Persona</a>
+          <a href="#stickers" data-nav="stickers">Stickers</a>
+        </div>
+      </div>
+      <div class="rail-group">
+        <p class="rail-label">System</p>
+        <div class="rail-list">
+          <a href="#reset" data-nav="reset">Reset</a>
+          <a href="#logs" data-nav="logs">Logs</a>
+          <a href="#config" data-nav="config">Config</a>
+        </div>
+      </div>
+      <p class="rail-foot">
+        Served from 127.0.0.1 only. There is no login, and a page on any other
+        site is refused when it tries to write.
+      </p>
+    </nav>
+
+    <main class="main">
+      <div class="page" id="view"></div>
+    </main>
+
+    <nav class="toc" id="page-toc" aria-label="On this page"></nav>
+  </div>
+</div>
+
+<div class="toast-container" id="toast" aria-live="polite"></div>
+
+<script type="module">
+const $ = (s, r = document) => r.querySelector(s);
+
+// Anything that names an attribute rather than a property - aria-*, data-*, role
+// and for - goes through setAttribute. Assigning `aria-label` on a node just
+// makes an expando the browser never sees, which is how a whole panel ends up
+// announcing itself as an unlabelled group of numbers.
+const AS_ATTR = /^(aria-|data-)|^role$|^for$/;
+
+const el = (t, a = {}, ...kids) => {
+  const n = document.createElement(t);
+  for (const [k, v] of Object.entries(a)) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class" || k === "className") n.className = v;
+    else if (k === "dataset") Object.assign(n.dataset, v);
+    else if (AS_ATTR.test(k)) n.setAttribute(k, v === true ? "" : v);
+    else n[k] = v;
+  }
+  for (const kid of kids.flat(3)) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    n.append(kid?.nodeType ? kid : document.createTextNode(kid));
+  }
+  return n;
+};
+
+const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+// Put these on the page. append() would turn a skipped child into the literal
+// text "null", and most of the calls below pass null on purpose.
+const add = (v, ...kids) => {
+  v.append(...kids.flat(3).filter(k => k !== null && k !== undefined && k !== false));
+  return v;
+};
+
+// Same filter, but it clears the host first. The editor opens over the view it
+// was launched from, and only this call may throw the old view away.
+const swap = (v, ...kids) => {
+  v.replaceChildren(...kids.flat(3).filter(k => k !== null && k !== undefined && k !== false));
+  return v;
+};
+
+let STATE = null;
+let VIEW = "overview";
+// The file open in the textarea, so a background refresh does not throw away
+// half-typed edits.
+let EDITING = null;
+// Ctrl-S has to reach the editor that is on screen, from one global listener.
+let SAVING = null;
+let SERVER_FILTER = "";
+
+function toast(msg, err = false) {
+  const t = el("div", { className: `toast-item${err ? " err" : ""}` },
+    el("span", { className: "dot" }), el("span", {}, msg));
+  $("#toast").append(t);
+  setTimeout(() => t.remove(), 4200);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(`/api${path}`, {
+    ...opts,
+    headers: { "Content-Type": "application/json" },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return body;
+}
+
+const post = (path, body) => api(path, { method: "POST", body: JSON.stringify(body) });
+
+// She writes the record, so re-reading is the only way to be sure of what stuck.
+async function reload() {
+  const res = await api("/");
+  Object.assign(STATE, res);
+  return res;
+}
+
+const saved = msg => toast(msg);
+
+// --- small builders -----------------------------------------------------------
+const SECTIONS = ["details", "notes", "likes", "dislikes", "projects", "people"];
+const SECTION_LABEL = {
+  details: "Details", notes: "Notes", likes: "Likes",
+  dislikes: "Dislikes", projects: "Projects", people: "People",
+};
+
+const GROUPS = {
+  overview: "Overview", model: "Overview", usage: "Overview",
+  presence: "Overview", servers: "Overview",
+  affinity: "Relationships", people: "Relationships",
+  skills: "Content", persona: "Content", stickers: "Content",
+  reset: "System", logs: "System", config: "System",
+};
+
+function head(title, lede, ...actions) {
+  return el("div", { className: "page-head" },
+    el("div", { className: "page-head-main" },
+      el("p", { className: "eyebrow" }, GROUPS[VIEW] || "Dashboard"),
+      el("h1", {}, title),
+      lede ? el("p", { className: "lede" }, lede) : null),
+    actions.length ? el("div", { className: "page-actions" }, ...actions) : null);
+}
+
+// The same head with her picture beside the name. Used on the overview only.
+function heroHead(title, lede, ...actions) {
+  return el("div", { className: "page-head with-portrait" },
+    el("div", { className: "page-head-body" },
+      el("div", { className: "page-head-portrait" },
+        STATE.bot.name.charAt(0).toUpperCase(),
+        portraitNode()),
+      el("div", { className: "page-head-main" },
+        el("p", { className: "eyebrow" }, GROUPS[VIEW] || "Dashboard"),
+        el("h1", {}, title),
+        lede ? el("p", { className: "lede" }, lede) : null)),
+    actions.length ? el("div", { className: "page-actions" }, ...actions) : null);
+}
+
+function panel(title, meta, ...kids) {
+  const p = el("section", { className: "panel" },
+    title
+      ? el("div", { className: "panel-head" },
+          el("h2", {}, title),
+          meta ? el("span", { className: "panel-meta" }, meta) : null)
+      : null,
+    ...kids);
+  if (title) p.setAttribute("data-toc", "");
+  return p;
+}
+
+function stat(label, value, sub) {
+  return el("div", { className: "tile" },
+    el("div", { className: "k" }, label),
+    el("div", { className: "v" }, value),
+    sub ? el("div", { className: "s" }, sub) : null);
+}
+
+function kv(label, value) {
+  return el("div", { className: "kv-row" },
+    el("span", { className: "k" }, label),
+    el("span", { className: "v" }, value));
+}
+
+function chips(...items) {
+  return el("div", { className: "row" }, ...items.filter(Boolean));
+}
+
+function chip(text, cls = "") {
+  return el("span", { className: `chip${cls ? " " + cls : ""}` }, text);
+}
+
+function notice(...kids) {
+  return el("div", { className: "notice" }, el("span", { className: "dot" }), el("div", {}, ...kids));
+}
+
+function empty(title, ...kids) {
+  return el("div", { className: "empty" }, el("b", {}, title), ...kids);
+}
+
+function field(label, input, hint = "") {
+  return el("div", { className: "field" },
+    el("label", {}, label),
+    input,
+    hint ? el("p", { className: "hint" }, hint) : null);
+}
+
+// A switch that remembers its own state. Reading it back off the class string
+// would tie the value to a no-op setAttribute in the render stub, and the drawn
+// knob and the value the caller saves must never disagree.
+function toggleSwitch(on, onToggle, label = "toggle") {
+  let state = !!on;
+  const sw = el("button", { className: `toggle${state ? " on" : ""}`, type: "button" }, el("i", {}));
+  sw.setAttribute("role", "switch");
+  sw.setAttribute("aria-checked", String(state));
+  sw.setAttribute("aria-label", label);
+  sw.onclick = () => {
+    state = !state;
+    sw.setAttribute("aria-checked", String(state));
+    if (state) sw.classList.add("on"); else sw.classList.remove("on");
+    if (onToggle) onToggle(state);
+  };
+  return sw;
+}
+
+// Text goes in at the caret, not the end, so a placeholder chip is still useful
+// once a line is half written.
+function insertInto(input, text) {
+  if (!input) return;
+  const start = typeof input.selectionStart === "number" ? input.selectionStart : input.value.length;
+  const end = typeof input.selectionEnd === "number" ? input.selectionEnd : start;
+  input.value = input.value.slice(0, start) + text + input.value.slice(end);
+  if (input.focus) {
+    try { input.selectionStart = input.selectionEnd = start + text.length; } catch { /* not selectable */ }
+    input.focus();
+  }
+}
+
+const cap = s => { const t = String(s || ""); return t.charAt(0).toUpperCase() + t.slice(1); };
+
+// Draw an art field the way Discord will: a URL is an image, an asset key is a
+// monogram (the key only resolves inside the Discord client).
+const artNode = (value, fallback) => /^https?:\/\//i.test(value || "")
+  ? el("img", { src: value, alt: "" })
+  : (value ? value.charAt(0).toUpperCase() : fallback);
+
+// Her picture, for anywhere a round portrait of her belongs. `onerror` drops the
+// node so the initial behind it stays visible - the file is a nice-to-have, not
+// a dependency of the panel rendering.
+const portraitNode = () => el("img", {
+  src: "/portrait",
+  alt: "",
+  decoding: "async",
+  onerror: function () { this.remove(); },
+});
+
+// A model provider's own mark, when we have one on disk.
+//
+// Nothing is fetched from the network: the file is looked up under the
+// provider's id in templates/logos, svg first then png. A miss falls back to the
+// letter tile the panel already drew, so a provider we hold no artwork for looks
+// deliberate rather than broken - and gaining one later needs no code change
+// beyond dropping the file in.
+const logoNode = provider => {
+  const label = String(provider?.name || provider?.id || "").trim();
+  const tile = el("span", { className: "prov-mark", title: label });
+
+  // Only a plain, safe id ever becomes a URL. Anything else goes straight to the
+  // letter rather than being escaped and guessed at.
+  const id = String(provider?.id || "").toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(id)) {
+    tile.textContent = label ? label.charAt(0).toUpperCase() : "?";
+    return tile;
+  }
+
+  const img = el("img", { className: "prov-logo", alt: "", decoding: "async" });
+  const sources = [`/logos/${id}.svg`, `/logos/${id}.png`];
+  let tried = 0;
+  // Handlers go on before the src deliberately: a file the browser has already
+  // cached as missing can fire its error before we are listening for it.
+  img.onload = () => tile.classList.add("with-logo");
+  img.onerror = () => {
+    tried += 1;
+    if (tried < sources.length) { img.src = sources[tried]; return; }
+    tile.textContent = label ? label.charAt(0).toUpperCase() : "?";
+  };
+  img.src = sources[0];
+  tile.append(img);
+  return tile;
+};
+
+// Fill the placeholders the panel can know locally, so the preview reads like
+// the profile instead of like the template. `{activity}` is the bot's own and
+// only exists while it is running.
+function resolvePresenceText(text) {
+  return String(text || "").replace(/\{(\w+)\}/g, (_, key) => {
+    const known = {
+      name: STATE.bot.name,
+      prefix: STATE.bot.prefix,
+      people: (STATE.people || []).length ? `${STATE.people.length} people` : "",
+      servers: (STATE.guilds || []).length ? `${STATE.guilds.length} servers` : "",
+      activity: "chatting",
+    };
+    return key in known ? known[key] : "";
+  });
+}
+
+const uptime = s => {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
+};
+
+// Token counts get long fast, so the headline numbers are abbreviated (1.2M)
+// and anything a person might need exactly stays in the tooltip. The rail
+// count and the chart axis both use this, which is why it lives up here.
+const shortNum = n => {
+  const v = Number(n) || 0;
+  const abs = Math.abs(v);
+  if (abs >= 1e9) return (v / 1e9).toFixed(abs >= 1e10 ? 0 : 1) + "B";
+  if (abs >= 1e6) return (v / 1e6).toFixed(abs >= 1e7 ? 0 : 1) + "M";
+  if (abs >= 1e4) return (v / 1e3).toFixed(0) + "k";
+  if (abs >= 1e3) return (v / 1e3).toFixed(1) + "k";
+  return String(Math.round(v));
+};
+
+// A call can cost well under a cent, so the money format keeps enough decimal
+// places to tell $0.000004 from $0.04 instead of rounding both to $0.00.
+const money = (value, priced = true) => {
+  if (!priced || value === null || value === undefined) return "—";
+  const v = Number(value);
+  if (!isFinite(v)) return "—";
+  if (v === 0) return "$0";
+  if (v < 0.01) {
+    const digits = Math.min(9, Math.max(4, Math.ceil(-Math.log10(v)) + 3));
+    return "$" + v.toFixed(digits);
+  }
+  if (v < 1) return "$" + v.toFixed(4);
+  return "$" + v.toFixed(2).replace(/\.00$/, "");
+};
+
+const ms = v => {
+  const n = Number(v) || 0;
+  if (n < 1000) return `${Math.round(n)}ms`;
+  return `${(n / 1000).toFixed(n < 10000 ? 2 : 1)}s`;
+};
+
+// What she was doing when she spent the tokens. The names come from the bot, so
+// an unknown one still renders rather than showing as a blank chip.
+const SOURCE_LABEL = {
+  chat: "replies",
+  extract: "memory extraction",
+  summary: "conversation summaries",
+};
+
+// --- model --------------------------------------------------------------------
+$("#modelgo").onclick = async () => {
+  const btn = $("#modelgo");
+  const pick = $("#modelsel").value;
+  if (!pick) return;
+  btn.disabled = true;
+  const previous = btn.textContent;
+  btn.textContent = "…";
+  try {
+    await api("/model", { method: "POST", body: JSON.stringify({ model: pick }) });
+    STATE = await api("/");
+    fillModels();
+    toast(`Using ${STATE.model}`);
+  } catch (e) {
+    toast(e.message, true);
+    fillModels();
+  } finally {
+    btn.textContent = previous;
+    btn.disabled = false;
+  }
+};
+
+function fillModels() {
+  const current = STATE.model;
+  const choices = (STATE.models && STATE.models.choices) || [];
+  const seen = new Set();
+  const chat = [], other = [];
+  for (const c of choices) {
+    if (!c.id || seen.has(c.id)) continue;
+    seen.add(c.id);
+    const label = c.title && c.title !== c.id ? c.title : c.id;
+    const o = el("option", { value: c.id, title: c.description || c.id }, label);
+    if (c.id === current) o.selected = true;
+    (c.chat === false ? other : chat).push(o);
+  }
+  if (!seen.has(current)) chat.unshift(el("option", { value: current }, current));
+
+  const groups = [];
+  if (chat.length) groups.push(el("optgroup", { label: "Chat" }, ...chat));
+  if (other.length) groups.push(el("optgroup", { label: `Other ” not a chat model (${other.length})` }, ...other));
+  $("#modelsel").replaceChildren(...groups);
+  $("#modelsel").value = current;
+
+  const isChat = choices.find(c => c.id === current)?.chat !== false;
+  const why = isChat
+    ? "Switch her to the selected model"
+    : "This one is not a chat model - she will not be able to reply with it";
+  $("#modelgo").title = why;
+  $("#modelsel").title = why;
+}
+
+function enter() {
+  $("#boot").remove();
+  $("#app").hidden = false;
+  $("#brandname").textContent = STATE.bot.name;
+  fillModels();
+  const c = STATE.affinity.crush;
+  const pill = $("#crushpill");
+  pill.hidden = !STATE.affinity.crushOn;
+  pill.className = c ? "chip star" : "chip";
+  pill.innerHTML = c ? `<span>&#9733;</span> ${escapeHtml(c.name)}` : "no crush yet";
+  buildNav();
+  render();
+  // Opened after the panel is drawn, so the snapshot behind the overlay is real
+  // and a finished wizard has something to reveal.
+  wizAutoOpen();
+}
+
+// --- first-run wizard ------------------------------------------------------------
+// Name, provider, photo, token, owner - in that order, because each one depends on
+// the one before it being plausible: she needs a name to be named, a provider to be
+// alive, and a photo and a token to actually reach Discord.
+//
+// Nothing here is a gate. Skipping is always allowed and every step is reachable
+// again from Overview, because refusing to open the panel until a token exists
+// would leave a first-run user with no way to fix the thing that is missing.
+const WIZ = {
+  step: 0,
+  done: [false, false, false],
+  state: null,
+};
+
+const WIZ_STEPS = [
+  ["name", "Name"],
+  ["provider", "Provider"],
+  ["photo", "Photo"],
+  ["done", "Finish"],
+];
+
+function wizPaintSteps() {
+  $("#wiz-steps").replaceChildren(...WIZ_STEPS.map(([, label], i) => {
+    const node = el("div", { className: "wiz-step", role: "listitem" }, label);
+    if (i === WIZ.step) node.setAttribute("aria-current", "true");
+    if (WIZ.done[i]) node.setAttribute("data-done", "true");
+    return node;
+  }));
+}
+
+// Real OpenAI-compatible endpoints, so the common case is one tap rather than
+// four fields. The full form stays below for anything not on this list.
+const WIZ_PRESETS = [
+  { id: "gemini", name: "Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "gemini-2.0-flash", env: "GEMINI_API_KEY", logo: "gemini.svg" },
+  { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1",
+    model: "llama-3.3-70b-versatile", env: "GROQ_API_KEY", logo: "groq.svg" },
+  { id: "openrouter", name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1",
+    model: "", env: "OPENROUTER_API_KEY", logo: "openrouter.svg" },
+  { id: "cerebras", name: "Cerebras", baseUrl: "https://api.cerebras.ai/v1",
+    model: "llama-3.3-70b", env: "CEREBRAS_API_KEY", logo: "cerebras.png" },
+  { id: "sambanova", name: "SambaNova", baseUrl: "https://api.sambanova.ai/v1",
+    model: "", env: "SAMBANOVA_API_KEY", logo: "sambanova.png" },
+];
+
+function wizGo(step) {
+  WIZ.step = Math.max(0, Math.min(WIZ_STEPS.length - 1, step));
+  WIZ_STEPS.forEach(([id], i) => { $(`#wiz-step-${id}`).hidden = i !== WIZ.step; });
+  wizPaintSteps();
+
+  const first = WIZ_STEPS[WIZ.step][0];
+  const back = $("#wiz-back");
+  const next = $("#wiz-next");
+  back.hidden = WIZ.step === 0;
+  $("#wiz-skip").hidden = first === "done";
+  // Every step saves, so the button says so rather than "Next". The only
+  // exception is the last one, which just closes the overlay.
+  next.textContent = first === "done" ? "Open the panel" : "Save and continue";
+}
+
+function wizOpen(firstStep = 0) {
+  $("#wizard").hidden = false;
+  wizGo(firstStep);
+}
+
+function wizClose() {
+  $("#wizard").hidden = true;
+}
+
+function wizNote(where, text, kind = "") {
+  const box = $(where);
+  box.replaceChildren(el("div", { className: `wiz-note${kind ? " " + kind : ""}` }, text));
+}
+
+// --- step 1: name ---------------------------------------------------------------
+async function wizSaveName() {
+  const name = $("#wiz-botname").value.trim();
+  if (!name) { toast("Give her a name first", true); return false; }
+  const alsoDiscord = $("#wiz-name-discord").checked;
+  try {
+    const res = await post("/setup/name", { name, alsoDiscordName: alsoDiscord });
+    $("#brandname").textContent = res.name;
+    if (STATE) STATE.bot.name = res.name;
+    WIZ.done[0] = true;
+    // The Discord rename is privileged and can be refused even when the local one
+    // worked, so it is reported rather than folded into a green tick.
+    $("#wiz-name-live").textContent = res.discordNamePushed
+      ? "Saved, and her Discord account was renamed too."
+      : (res.why || "Saved locally.");
+    return true;
+  } catch (e) {
+    toast(e.message, true);
+    return false;
+  }
+}
+
+// --- step 2: provider ------------------------------------------------------------
+// The key goes to .env through the existing provider route, which already keeps
+// key values out of config.json and never reads them back.
+async function wizSaveProvider() {
+  const id = $("#wiz-base").value.trim();
+  const model = $("#wiz-model").value.trim();
+  const env = $("#wiz-env").value.trim();
+  const key = $("#wiz-key").value.trim();
+  if (!id || !model || !env) {
+    toast("A base URL, a model and a key variable name are all needed", true);
+    return false;
+  }
+  if (!key) {
+    toast("Paste the API key", true);
+    return false;
+  }
+  const preset = WIZ_PRESETS.find(p => p.baseUrl === id);
+  try {
+    const res = await post("/provider", {
+      id: (preset?.id || env.replace(/[^a-z0-9]+/gi, "-").toLowerCase()),
+      name: preset?.name || env.replace(/_API_KEY$/, "").replace(/_/g, " "),
+      baseUrl: id,
+      model,
+      apiKeyEnv: env,
+      apiKey: key,
+      enabled: true,
+    });
+    $("#wiz-key").value = "";   // never left sitting in a DOM field
+    STATE = await api("/");
+    WIZ.done[1] = true;
+    wizNote("#wiz-provider-note",
+      `Added ${res.provider.name} on ${res.provider.model}. The key is in .env and is never read back out.`,
+      "ok");
+    fillModels();
+    return true;
+  } catch (e) {
+    wizNote("#wiz-provider-note", e.message, "bad");
+    toast(e.message, true);
+    return false;
+  }
+}
+
+// Ask the provider what it serves, so choosing a model is a list rather than a
+// guess. Works before the provider is saved - the key is passed with the request
+// and nothing about it is written down.
+$("#wiz-fetch-models").onclick = async () => {
+  const btn = $("#wiz-fetch-models");
+  const note = $("#wiz-fetch-note");
+  const base = $("#wiz-base").value.trim();
+  const env = $("#wiz-env").value.trim();
+  const key = $("#wiz-key").value.trim();
+  if (!base) { note.textContent = "a base URL first"; return; }
+  btn.disabled = true;
+  note.textContent = "asking…";
+  try {
+    const preset = WIZ_PRESETS.find(p => p.baseUrl === base);
+    const res = await post("/provider/models", {
+      id: preset?.id || env.replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
+      name: preset?.name || "",
+      baseUrl: base,
+      apiKeyEnv: env,
+      apiKey: key,
+    });
+    const pick = $("#wiz-model-pick");
+    const models = res.models || [];
+    pick.replaceChildren(
+      ...models.map(m => el("option", { value: m.id }, `${m.id}${m.context_length ? ` · ${shortNum(m.context_length)} ctx` : ""}`)));
+    $("#wiz-model-pick-field").hidden = models.length === 0;
+    if (models.length) {
+      // Pre-fill the free input with the first chat model they actually serve,
+      // which is nearly always the sensible default.
+      const first = models.find(m => m.chat !== false) || models[0];
+      $("#wiz-model").value = first.id;
+    }
+    note.textContent = models.length ? `${models.length} model(s)` : "they returned an empty list";
+  } catch (e) {
+    note.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// --- step 3: photo, token, owner ---------------------------------------------------
+async function wizSavePhoto() {
+  const token = $("#wiz-token").value.trim();
+  const owner = $("#wiz-owner").value.trim();
+  const notes = [];
+
+  const dataUrl = await wizReadPicture();
+  if (dataUrl) {
+    try {
+      const res = await post("/setup/portrait", { data: dataUrl });
+      WIZ.done[2] = true;
+      notes.push(res.pushedToDiscord
+        ? "Picture saved and pushed to her Discord avatar."
+        : `Picture saved${res.why ? " - " + res.why : ""}`);
+      wizPaintFace(dataUrl);
+    } catch (e) {
+      notes.push("Picture refused: " + e.message);
+    }
+  } else if (wizFacePending) {
+    notes.push("Picture skipped.");
+  } else if (!wizHasSavedPicture()) {
+    notes.push("No picture yet - she will show her initial instead. You can add one later.");
+  } else {
+    notes.push("Picture kept as it was.");
+  }
+
+  if (token) {
+    try {
+      await post("/setup/token", { token });
+      notes.push("Bot token written to .env (restart her to connect).");
+      $("#wiz-token").value = "";
+    } catch (e) {
+      notes.push("Token refused: " + e.message);
+    }
+  }
+
+  if (owner) {
+    try {
+      await post("/setup/owner", { userId: owner });
+      notes.push("You are the owner - owner-only commands will work.");
+    } catch (e) {
+      notes.push("Owner ID refused: " + e.message);
+    }
+  }
+
+  // The Portal extras go as one batch so a typo in the last field cannot lose the
+  // first two.
+  const appId = $("#wiz-appid").value.trim();
+  const pubKey = $("#wiz-pubkey").value.trim();
+  const clientSecret = $("#wiz-secret").value.trim();
+  if (appId || pubKey || clientSecret) {
+    try {
+      await post("/setup/discord", { appId, publicKey: pubKey, clientSecret });
+      notes.push("Developer Portal details saved.");
+      $("#wiz-secret").value = "";
+    } catch (e) {
+      notes.push("Portal details refused: " + e.message);
+    }
+  }
+
+  const bad = notes.filter(n => /refused/i.test(n));
+  wizNote("#wiz-photo-note", notes.join(" "), bad.length ? "bad" : "ok");
+  return bad.length === 0;
+}
+
+// Whether there is a picture to save or keep. The pending flag covers a file
+// picked this visit; the img probe covers one already on disk.
+function wizHasSavedPicture() {
+  return Boolean(wizFacePending) || !$("#wiz-photo-preview").hidden;
+}
+
+let wizFacePending = false;
+
+// Read the chosen file into a data URL. Checked here as well as on the server
+// because a 30 MB photo should not be turned into a giant string first.
+function wizReadPicture() {
+  const input = $("#wiz-file-2");
+  const file = input.files && input.files[0];
+  if (!file) return Promise.resolve(null);
+  if (file.size > 8 * 1024 * 1024) {
+    toast("That image is over 8 MB", true);
+    return Promise.resolve(null);
+  }
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+// The preview inside the photo step: it shows the picked file at once, before
+// anything is saved, so a wrong image is obvious before the click.
+function wizPaintFace(dataUrl) {
+  const img = $("#wiz-photo-preview");
+  img.src = dataUrl;
+  img.hidden = false;
+  wizFacePending = true;
+  $("#wiz-drop-text").textContent = "Picture picked - it is saved when you continue";
+}
+
+// Once the server has the file, point the header at /portrait so the panel behind
+// the overlay shows the same face.
+function wizPaintSaved() {
+  const img = $("#wiz-photo-preview");
+  img.src = "/portrait";
+  img.hidden = false;
+  const head = $("#brandimg");
+  if (head) {
+    head.src = "/portrait";
+    head.hidden = false;
+  }
+  $("#brandface").hidden = true;
+  wizFacePending = false;
+}
+
+// --- step 4: finish ----------------------------------------------------------------
+async function wizFinish() {
+  let state;
+  try {
+    state = await post("/setup/finish", {});
+  } catch {
+    state = await api("/setup");
+  }
+
+  const rows = [
+    [Boolean(state.hasWorkingModel),
+      state.hasWorkingModel ? `She can talk on ${state.workingModel}` : "No model API key yet"],
+    [Boolean(state.hasBotToken), state.hasBotToken ? "Discord token saved" : "No bot token yet"],
+    [state.connected === true, state.connected
+      ? `Connected as ${state.discordUsername || "the bot"}`
+      : "Not connected - start her with python main.py"],
+    [Boolean(state.hasPortrait), state.hasPortrait ? "Picture saved" : "No picture yet"],
+  ];
+  $("#wiz-tally").replaceChildren(...rows.map(([ok, text]) =>
+    el("div", { className: "wiz-tally-row", dataset: { ok: String(ok) } },
+      el("i", {}, ok ? "✓" : "!"), el("span", {}, text))));
+
+  const missing = state.missing || [];
+  wizNote("#wiz-done-note",
+    missing.length
+      ? "Still to do: " + missing.join(" · ")
+      : "Everything is in place. She is ready.",
+    missing.length ? "bad" : "ok");
+
+  if (state.hasPortrait) wizPaintSaved();
+}
+
+// --- wiring -----------------------------------------------------------------------
+$("#wiz-next").onclick = async () => {
+  const btn = $("#wiz-next");
+  btn.disabled = true;
+  const first = WIZ_STEPS[WIZ.step][0];
+  try {
+    if (first === "name") { if (await wizSaveName()) wizGo(1); }
+    else if (first === "provider") { if (await wizSaveProvider()) wizGo(2); }
+    else if (first === "photo") {
+      await wizSavePhoto();
+      wizGo(3);
+      await wizFinish();
+      // Keep the connection panel behind the overlay in step with what was just
+      // typed, so closing the wizard does not reveal stale blanks.
+      try { STATE.setup = await api("/setup"); } catch {}
+    }
+    else {
+      // Done: pull a fresh snapshot so the panel behind is current, then get out
+      // of the way. The wizard is an overlay, not a wall - everything in it is
+      // reachable again from Overview.
+      wizMarkDismissed();
+      STATE = await api("/");
+      fillModels();
+      buildNav();
+      render();
+      wizClose();
+    }
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+$("#wiz-back").onclick = () => wizGo(WIZ.step - 1);
+
+// "Skip for now" means do not ask again, not come back on the next page load -
+// so it is the same dismissal as closing, it just does not jump to the summary.
+$("#wiz-skip").onclick = async () => {
+  wizMarkDismissed();
+  wizClose();
+  try { STATE.setup = await api("/setup"); } catch {}
+};
+
+// Escape at the first step closes rather than doing nothing, and counts as
+// dismissed: pressing Escape is a way of saying not now, and re-opening the
+// overlay on the next load would ignore that.
+$("#wizard").addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (WIZ.step > 0) { e.preventDefault(); wizGo(WIZ.step - 1); }
+  else { e.preventDefault(); wizMarkDismissed(); wizClose(); }
+});
+
+// Enter advances, because a wizard you have to reach for the mouse in is a wizard
+// people abandon. Only from a text field, so it cannot fire mid-typing elsewhere.
+$("#wizard").addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.tagName === "INPUT" && e.target.type !== "file") {
+    e.preventDefault();
+    $("#wiz-next").click();
+  }
+});
+
+// The provider presets. A tap fills the fields but never saves - the key still has
+// to be typed, so a preset cannot leave a provider half-configured.
+function wizBuildPresets() {
+  const box = $("#wiz-presets");
+  const buttons = WIZ_PRESETS.map(preset => {
+    const btn = el("button", { className: "wiz-preset", type: "button" },
+      el("img", { src: `/logos/${preset.logo}`, alt: "", decoding: "async",
+                   onerror: function () { this.remove(); } }),
+      el("span", {}, preset.name));
+    btn.setAttribute("aria-pressed", "false");
+    btn.onclick = () => {
+      $("#wiz-base").value = preset.baseUrl;
+      $("#wiz-env").value = preset.env;
+      if (preset.model) $("#wiz-model").value = preset.model;
+      buttons.forEach(b => b.setAttribute("aria-pressed", "false"));
+      btn.setAttribute("aria-pressed", "true");
+      $("#wiz-key").focus();
+    };
+    return btn;
+  });
+  box.replaceChildren(...buttons);
+}
+
+// Both file inputs drive the same preview: the round one is the pick button, the
+// drop zone is a label pointing at the hidden input.
+const photoInput = $("#wiz-file-2");
+photoInput.addEventListener("change", async () => {
+  const url = await wizReadPictureFor(photoInput);
+  if (url) wizPaintFace(url);
+});
+
+function wizReadPictureFor(input) {
+  const file = input.files && input.files[0];
+  if (!file) return Promise.resolve(null);
+  if (file.size > 8 * 1024 * 1024) { toast("That image is over 8 MB", true); return Promise.resolve(null); }
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Drag and drop onto the drop zone. The zone is a <label>, so a click already
+// opens the picker; this only adds dropping.
+const drop = $("#wiz-drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault();
+  drop.classList.add("over");
+}));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault();
+  drop.classList.remove("over");
+}));
+drop.addEventListener("drop", async e => {
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) { toast("That image is over 8 MB", true); return; }
+  const reader = new FileReader();
+  reader.onload = () => wizPaintFace(String(reader.result || ""));
+  reader.readAsDataURL(file);
+});
+
+wizBuildPresets();
+
+// The single entry point the Overview tile calls. Opening it by hand clears the
+// dismissal, so the next page load offers it again on its own - otherwise a
+// deliberate re-open would look identical to one that never happened.
+window._wizardOpen = async () => {
+  if (WIZ.state && WIZ.state.wizardDismissed) {
+    post("/setup/dismissed", { dismissed: false }).catch(() => {});
+    if (WIZ.state) WIZ.state.wizardDismissed = false;
+  }
+  wizOpen(0);
+};
+
+// Guarded by a variable rather than a browser storage key: this script also runs
+// under Node in the render tests, where there is no window at all.
+let wizSeenThisLoad = false;
+
+// Told on by the server the moment the wizard is closed or skipped, and persisted
+// there, so a fresh page load does not bring it straight back. Cleared only if
+// the server still says it has never been dismissed - the flag survives reloads,
+// a new browser and a new machine, which a per-browser key would not.
+function wizMarkDismissed() {
+  post("/setup/dismissed", { dismissed: true }).catch(() => {});
+  if (WIZ.state) WIZ.state.wizardDismissed = true;
+}
+
+async function wizAutoOpen() {
+  if (wizSeenThisLoad) return;
+  wizSeenThisLoad = true;
+  let state;
+  try { state = await api("/setup"); } catch { return; }
+
+  WIZ.state = state;
+  STATE.setup = state;
+  $("#wiz-botname").value = state.name || "";
+  // Pre-fill so re-opening the wizard edits what is already there instead of
+  // showing blanks that look like nothing is set.
+  $("#wiz-appid").value = state.appId || "";
+  $("#wiz-pubkey").value = state.publicKey || "";
+  if (state.ownerId) $("#wiz-owner").value = state.ownerId;
+  // Never pre-filled with a secret: the server only reports whether one exists.
+  $("#wiz-secret").placeholder = state.hasClientSecret
+    ? "already set - paste a new one to replace it"
+    : "only if you want the install link built";
+  if (state.hasPortrait) wizPaintSaved();
+
+  // Preselect a provider she already has a key for, so a re-run of the wizard is
+  // not a blank form.
+  const withKey = (STATE?.models?.providers || []).find(p => p.hasKey);
+  if (withKey) {
+    $("#wiz-base").value = withKey.baseUrl;
+    $("#wiz-model").value = withKey.model;
+    $("#wiz-env").value = withKey.apiKeyEnv || "";
+  }
+  if (!state.connected) {
+    wizNote("#wiz-photo-note",
+      "She is not connected to Discord, so a picture or username cannot be pushed yet. Both are saved and applied the moment she starts.");
+  }
+
+  if (!state.firstRun) return;         // configured: leave the panel alone
+  if (state.wizardDismissed) return;  // already dealt with: leave it alone
+  wizOpen(0);
+}
+
+// --- hash navigation ----------------------------------------------------------
+const TABS = [
+  ["overview", "Overview"],
+  ["model", "Model"],
+  ["usage", "Usage"],
+  ["presence", "Presence"],
+  ["servers", "Servers"],
+  ["affinity", "Affect"],
+  ["people", "People"],
+  ["skills", "Skills"],
+  ["persona", "Persona"],
+  ["stickers", "Stickers"],
+  ["reset", "Reset"],
+  ["logs", "Logs"],
+  ["config", "Config"],
+];
+
+function currentViewFromHash() {
+  const hash = location.hash.slice(1);
+  const found = TABS.find(([id]) => id === hash);
+  return found ? found[0] : "overview";
+}
+
+// Counts next to the rail entries, so the shape of her life is visible without
+// opening anything.
+const COUNTS = {
+  people: () => (STATE.people || []).length,
+  servers: () => (STATE.guilds || []).length,
+  skills: () => (STATE.skills || []).length,
+  affinity: () => (STATE.affinity.people || []).length,
+  // `shortNum(0)` is the truthy string "0", which would put a bare 0 in the rail
+  // on a day with no calls yet. Check the number, not the formatted one.
+  usage: () => {
+    const total = (STATE.usage || {}).totals?.total || 0;
+    return total ? shortNum(total) : 0;
+  },
+};
+
+function buildNav() {
+  document.querySelectorAll('#side-nav a').forEach(a => {
+    if (a.dataset.nav === VIEW) a.setAttribute('aria-current', 'true');
+    else a.removeAttribute('aria-current');
+
+    const count = COUNTS[a.dataset.nav]?.();
+    const existing = a.querySelector(".nav-n");
+    if (existing) existing.remove();
+    if (count) a.append(el("span", { className: "nav-n" }, String(count)));
+  });
+}
+
+function navigateTo(view) {
+  if (VIEW === view) { render(); return; }
+  VIEW = view;
+  history.replaceState(null, '', '#' + view);
+  buildNav();
+  render();
+  closeNav();
+}
+
+window.addEventListener('hashchange', () => {
+  VIEW = currentViewFromHash();
+  buildNav();
+  render();
+});
+
+// --- mobile rail ---------------------------------------------------------------
+function openNav() {
+  const nav = $("#side-nav");
+  const scrim = $("#nav-scrim");
+  const btn = $("#nav-toggle");
+  nav.classList.add('open');
+  document.body.classList.add('nav-open');
+  scrim.classList.add('show');
+  scrim.removeAttribute('hidden');
+  btn.setAttribute('aria-expanded', 'true');
+  btn.setAttribute('aria-label', 'Close menu');
+}
+
+function closeNav() {
+  const nav = $("#side-nav");
+  const scrim = $("#nav-scrim");
+  const btn = $("#nav-toggle");
+  nav.classList.remove('open');
+  document.body.classList.remove('nav-open');
+  scrim.classList.remove('show');
+  scrim.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', 'Open menu');
+}
+
+$("#nav-toggle").addEventListener('click', () => {
+  if ($("#side-nav").classList.contains('open')) closeNav();
+  else openNav();
+});
+
+$("#nav-scrim").addEventListener('click', closeNav);
+
+$("#side-nav").addEventListener('click', e => {
+  if (e.target.closest('a')) closeNav();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeNav();
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && SAVING) {
+    e.preventDefault();
+    SAVING();
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) closeNav();
+});
+
+// --- TOC ----------------------------------------------------------------------
+// One handler per render. The list is cleared in buildTOC() rather than left to
+// grow: a handler pushed on every tab change eventually fires thousands of
+// times a scroll, and the list keeps every detached heading alive.
+const scrollHandlers = [];
+let scrollQueued = false;
+
+function onScroll(fn) { scrollHandlers.push(fn); }
+
+window.addEventListener('scroll', () => {
+  if (scrollQueued) return;
+  scrollQueued = true;
+  window.requestAnimationFrame(() => {
+    for (let i = 0; i < scrollHandlers.length; i++) scrollHandlers[i](110);
+    scrollQueued = false;
+  });
+}, { passive: true });
+
+function buildTOC() {
+  scrollHandlers.length = 0;
+  const toc = $("#page-toc");
+  const inner = $("#view");
+  toc.replaceChildren();
+  if (!inner) return;
+
+  // The panels of this one view, not the headings inside them: a panel's own
+  // heading is its name, and its own box is what should be scrolled to.
+  const hosts = inner.querySelectorAll("[data-toc]");
+  if (!hosts.length) return;
+
+  toc.append(el("p", { className: "toc-label" }, "On this page"));
+
+  const items = [];
+  hosts.forEach((host, i) => {
+    if (!host.id) host.id = "sec-" + (i + 1);
+    const title = host.querySelector("h2") || host;
+    const a = el("a", { href: "#" + host.id }, title.textContent.trim());
+    // These anchors live inside the view, so letting the browser write the
+    // fragment would be read as "go to that tab" and bounce the reader back to
+    // Overview. Scroll it ourselves and leave the address bar alone.
+    a.onclick = ev => {
+      ev.preventDefault();
+      host.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    toc.append(a);
+    items.push({ link: a, target: host });
+  });
+
+  items[0].link.setAttribute("aria-current", "true");
+  onScroll(line => {
+    let current = items[0].target.id;
+    items.forEach(it => {
+      if (it.target.getBoundingClientRect().top <= line) current = it.target.id;
+    });
+    items.forEach(it => {
+      if (it.target.id === current) it.link.setAttribute("aria-current", "true");
+      else it.link.removeAttribute("aria-current");
+    });
+  });
+}
+
+// --- render --------------------------------------------------------------------
+function render() {
+  const v = $("#view");
+  v.replaceChildren();
+  v.className = 'page fade-in';
+  ({ overview, model: modelSettings, usage: usageView, presence: presenceSettings, servers, persona, skills, people, affinity, stickers, reset, logs, config: configView }[VIEW] || overview)(v);
+  buildNav();
+  buildTOC();
+}
+
+function file(path, title, sub) {
+  const go = () => {
+    const view = path.startsWith("skills/") ? "skills"
+      : path.startsWith("memory/") ? "people"
+      : path === "persona.md" ? "persona"
+      : path === "config.json" ? "config"
+      : "stickers";
+    navigateTo(view);
+    setTimeout(() => openEditor(path), 30);
+  };
+  return el("a", { className: "file", href: "#", onclick: go }, el("b", {}, title), el("span", {}, sub));
+}
+
+function goTile(title, sub, view) {
+  return el("button", { className: "go", onclick: () => navigateTo(view) },
+    el("b", {}, title), el("span", {}, sub));
+}
+
+// --- overview -------------------------------------------------------------------
+function overview(v) {
+  const a = STATE.affinity;
+  const s = STATE.stickers || {};
+  const guilds = STATE.guilds || [];
+  const members = guilds.reduce((n, g) => n + (g.members || 0), 0);
+  const facts = STATE.people.reduce((n, p) => n + p.count, 0);
+  const quiet = (STATE.muted || []).map(slug => STATE.people.find(p => p.slug === slug)?.name || slug);
+
+  add(v,
+    heroHead(STATE.bot.name,
+      "Everything about her in one place ” model, memory, affect, servers, content. All of it editable, all of it live."),
+
+    el("div", { className: "tiles" },
+      ...(a.crushOn ? [stat("Crush", a.crush ? a.crush.name : "nobody yet",
+        a.crush ? `${a.crush.romance}/100 romance · ${a.crush.read.romance}` : `needs ${a.eligible.join(" or ")}`),
+      ] : []),
+      stat("People", String(a.people.length),
+        a.crushOn ? `${a.people.filter(p => p.eligible).length} eligible for the crush` : "affect records tracked"),
+      stat("Model", STATE.model, `${(STATE.models && STATE.models.choices || []).length} providers configured`),
+      stat("Uptime", uptime(STATE.uptime), `in ${guilds.length} server${guilds.length === 1 ? "" : "s"}`)),
+
+    panel("Quick actions", null, el("div", { className: "grid gauto" },
+      goTile("Switch model", "Change her brain", "model"),
+      goTile("Edit persona", "Who she is", "persona"),
+      goTile("Affect", "How she feels", "affinity"),
+      goTile("People", "Who she knows", "people"),
+      goTile("Skills", "What she can do", "skills"),
+      goTile("Config", "Every setting", "config"),
+      el("button", { className: "go", onclick: () => { window._wizardOpen(); } },
+        el("b", {}, "Setup wizard"),
+        el("span", {}, "Name, model, photo, token")))),
+
+    panel("At a glance", `${facts} stored facts`, el("div", { className: "kv" },
+      kv("Model", STATE.model),
+      kv("People she knows", String(STATE.people.length)),
+      kv("Stored facts", `${facts} across ${SECTIONS.length} sections`),
+      kv("Skills", `${STATE.skills.length} · ${STATE.skills.filter(x => x.always).length} always on`),
+      kv("Sticker images", `${(s.files || []).length} · ${(s.images || []).length} keyword-linked`),
+      kv("Server emoji", String(s.serverEmoji ?? 0)),
+      kv("Keyword reactions", String(s.emojiReactions ?? 0)),
+      kv("Servers", `${guilds.length} · ${members} members reached`))),
+
+    panel("Everything you can edit", "persona.md is the highest leverage file in here",
+      el("div", { className: "files" },
+        file("persona.md", "persona.md", "who she is ” highest leverage"),
+        ...STATE.skills.map(x => file(`skills/${x.file}`, `skills/${x.file}`,
+          x.always ? "always on" : x.keywords.length ? x.keywords.slice(0, 7).join(", ") : "no keywords")),
+        file("stickers.json", "stickers.json", "custom emoji and reactions"),
+        file("config.json", "config.json", "model, memory, affect, dashboard"),
+        ...STATE.people.map(p => file(`memory/${p.slug}.md`, p.name, `${p.count} fact(s) ” memory/${p.slug}.md`))))
+  );
+
+  if (quiet.length) {
+    v.append(notice(
+      el("b", {}, quiet.length === 1 ? quiet[0] : quiet.join(", ")),
+      " ” still remembered, still recorded, just no replies. Turn them back in ",
+      el("b", {}, "People"), "."));
+  }
+
+  if (a.crushOn && !a.people.some(p => p.pronouns)) {
+    v.append(el("div", { className: "notice info" }, el("span", { className: "dot" }),
+      el("div", {}, "She only falls for ", el("code", {}, a.eligible.join(" or ")),
+        ", so anyone without pronouns recorded can never be elected. Set one in ",
+        el("b", {}, "Affect"), ", or with ", el("code", {}, "!pronouns he/him"), ".")));
+  }
+}
+
+function muteToggle(p) {
+  const quiet = (STATE.muted || []).includes(p.slug);
+  const sw = el("button", {
+    className: `toggle${quiet ? "" : " on"}`,
+    title: quiet
+      ? "She is quiet for this person. Switching on lets her reply again."
+      : "She stops replying to this person. Their memory and the log stay.",
+  }, el("i", {}));
+  sw.setAttribute("role", "switch");
+  sw.setAttribute("aria-checked", String(!quiet));
+  sw.setAttribute("aria-label", `let ${p.name} talk to her`);
+
+  sw.onclick = async () => {
+    sw.disabled = true;
+    try {
+      await api("/mute", { method: "POST", body: JSON.stringify({ slug: p.slug, muted: !quiet }) });
+      STATE = await api("/");
+      const now = (STATE.muted || []).includes(p.slug);
+      toast(`${p.name}: ${now ? "she will not reply" : "answering again"}`);
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      render();
+    }
+  };
+  return el("div", { className: "row", style: "gap:7px" },
+    sw,
+    el("span", { className: "hint" }, quiet ? "quiet" : "answering"));
+}
+
+// --- servers --------------------------------------------------------------------
+let guildFilter = "";
+
+function leaveButton(g) {
+  const btn = el("button", { className: "btn btn-sm btn-danger" }, "Leave");
+  btn.title = "Make her leave this server. A fresh invite link is the only way to put her back.";
+  btn.onclick = async ev => {
+    ev.stopPropagation();
+    const sure = confirm(
+      `Make ${STATE.bot.name} leave "${g.name}"?\n\n` +
+      "She stops talking there right away. Every other server is untouched, but " +
+      "getting her back needs a fresh invite link from Discord.");
+    if (!sure) return;
+    btn.disabled = true;
+    try {
+      await api("/guilds/leave", { method: "POST", body: JSON.stringify({ id: g.id }) });
+      STATE = await api("/");
+      toast(`left ${g.name}`);
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      render();
+    }
+  };
+  return btn;
+}
+
+function servers(v) {
+  const list = STATE.guilds || [];
+
+  const rows = el("div", {});
+  const count = el("span", { className: "hint" }, "");
+  const box = el("input", { type: "search", className: "grow", placeholder: "filter by name…", value: SERVER_FILTER });
+  box.oninput = () => { SERVER_FILTER = box.value; paint(); };
+
+  const guildRow = g => el("div", { className: "srv" },
+    el("div", { className: "srv-art" },
+      g.icon
+        ? el("img", { src: g.icon, alt: "" })
+        : (g.name || "?").trim().charAt(0).toUpperCase()),
+    el("div", { className: "grow" },
+      el("div", { className: "srv-name" }, g.name),
+      el("div", { className: "hint" },
+        `${g.members} member${g.members === 1 ? "" : "s"} · ${g.channels} channel${g.channels === 1 ? "" : "s"}` +
+        (g.joined ? ` · joined ${g.joined}` : ""))),
+    el("div", { className: "srv-actions" },
+      chip(g.id, "code"),
+      leaveButton(g)));
+
+  function paint() {
+    const q = SERVER_FILTER.trim().toLowerCase();
+    const hits = q ? list.filter(g => (g.name || "").toLowerCase().includes(q)) : list;
+    count.textContent = hits.length === list.length
+      ? `${list.length} server${list.length === 1 ? "" : "s"}`
+      : `${hits.length} of ${list.length}`;
+    rows.replaceChildren(...(hits.length
+      ? hits.map(guildRow)
+      : [empty(q ? `Nothing matches "${SERVER_FILTER}"` : "Not in any servers right now")]));
+  }
+
+  const members = list.reduce((n, g) => n + (g.members || 0), 0);
+
+  add(v,
+    head("Servers", "Every server she is currently in. Leaving one lasts until someone sends a fresh invite."),
+
+    el("div", { className: "tiles" },
+      stat("Servers", String(list.length), "currently in"),
+      stat("People reached", String(members), "across every server"),
+      stat("Quiet for", String((STATE.muted || []).length), "people switched off")),
+
+    connectionPanel(),
+
+    panel("All servers", null,
+      el("div", { className: "row spread", style: "margin-bottom:12px" }, box, count),
+      rows)
+  );
+
+  paint();
+}
+
+// --- connection details ------------------------------------------------------
+// The wizard's step 3 answers "how do I find these", but the wizard is one visit
+// long. This is where they live afterwards, so a wrong value can be corrected
+// without re-running setup or hand-editing .env.
+//
+// Secrets are never sent here: the token and the client secret come back as
+// "set" or "not set" and a field left blank keeps whatever is there. That is the
+// only way an edit screen can be safe when there is no login on the panel.
+function connectionPanel() {
+  const s = STATE.setup || {};
+  const ownerId = s.ownerId || "";
+  const owners = ownerId ? 1 : 0;
+
+  const appId = el("input", { value: s.appId || "", placeholder: "1234567890123456789",
+                              inputmode: "numeric", spellcheck: false });
+  const publicKey = el("input", { value: s.publicKey || "", placeholder: "64 hex characters",
+                                  spellcheck: false });
+  const token = el("input", { type: "password", placeholder: s.hasBotToken
+      ? "already set - paste a new one to replace it" : "paste the bot token",
+      autocomplete: "off", spellcheck: false });
+  const clientSecret = el("input", { type: "password", placeholder: s.hasClientSecret
+      ? "already set - paste a new one to replace it" : "optional, OAuth2 only",
+      autocomplete: "off", spellcheck: false });
+  const owner = el("input", { value: ownerId, placeholder: "123456789012345678",
+                             inputmode: "numeric", spellcheck: false });
+
+  const note = el("div", { className: "hint" });
+  const save = el("button", { className: "btn btn-primary" }, "Save");
+
+  const setNote = (text, bad = false) => {
+    note.textContent = text;
+    note.style.color = bad ? "var(--bad)" : "var(--ink-3)";
+  };
+
+  save.onclick = async () => {
+    save.disabled = true;
+    save.textContent = "Saving…";
+    const problems = [];
+    try {
+      if (token.value.trim()) {
+        await post("/setup/token", { token: token.value.trim() });
+        token.value = "";
+        problems.push("Token saved to .env - restart her to connect.");
+      }
+      if (appId.value.trim() || publicKey.value.trim() || clientSecret.value.trim()) {
+        await post("/setup/discord", {
+          appId: appId.value.trim(),
+          publicKey: publicKey.value.trim(),
+          clientSecret: clientSecret.value.trim(),
+        });
+        clientSecret.value = "";
+        problems.push("Portal details saved.");
+      }
+      if (owner.value.trim() !== ownerId) {
+        if (!owner.value.trim()) {
+          problems.push("Owner ID cannot be cleared here - edit config.json to remove it.");
+        } else {
+          await post("/setup/owner", { userId: owner.value.trim() });
+          problems.push("Owner updated.");
+        }
+      }
+      STATE.setup = await api("/setup");
+      setNote(problems.length ? problems.join(" ") : "Nothing changed.");
+    } catch (e) {
+      setNote(e.message, true);
+    } finally {
+      save.disabled = false;
+      save.textContent = "Save";
+    }
+  };
+
+  // Only offered when there is an application id to build a link from - the link
+  // is the one thing here that is useless without one.
+  const appIdForLink = s.appId || "";
+  const invite = appIdForLink
+    ? el("div", { className: "row" },
+        el("code", { className: "hint" },
+          `https://discord.com/oauth2/authorize?client_id=${appIdForLink}&scope=bot%20applications.commands&permissions=202752`),
+        el("button", {
+          className: "btn btn-sm",
+          onclick: async () => {
+            try {
+              await navigator.clipboard.writeText(
+                `https://discord.com/oauth2/authorize?client_id=${appIdForLink}&scope=bot%20applications.commands&permissions=202752`);
+              toast("Invite link copied");
+            } catch { toast("Could not reach the clipboard - select the text and copy it", true); }
+          },
+        }, "Copy invite link"))
+    : el("p", { className: "hint" }, "Add an application id above and the invite link appears here.");
+
+  const picture = el("div", { className: "row" });
+  picture.append(
+    el("span", { className: "wiz-shot", hidden: !s.hasPortrait },
+      s.hasPortrait ? el("img", { src: "/portrait", alt: "", decoding: "async",
+                                  onerror: function () { this.closest(".wiz-shot").hidden = true; } }) : null),
+    el("label", { className: "btn btn-sm", for: "conn-photo" },
+      s.hasPortrait ? "Replace picture" : "Add a picture"),
+    el("input", {
+      type: "file", id: "conn-photo", hidden: true,
+      accept: "image/png,image/jpeg,image/webp,image/gif",
+    }));
+
+  const photoFile = picture.querySelector("#conn-photo");
+  photoFile.onchange = async () => {
+    const file = photoFile.files[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) return toast("That image is over 8 MB", true);
+    const dataUrl = await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+    if (!dataUrl) return;
+    try {
+      const res = await post("/setup/portrait", { data: dataUrl });
+      toast(res.pushedToDiscord ? "Picture updated" : "Picture saved - push it when she is connected");
+      STATE.setup = await api("/setup");
+      render();
+    } catch (e) { toast(e.message, true); }
+  };
+
+  return panel("Connection", s.connected
+      ? `connected as ${s.discordUsername || "the bot"}`
+      : "not connected",
+    picture,
+    el("div", { className: "grid" },
+      field("Application id", appId, "Developer Portal → General Information. Public, not a secret."),
+      field("Public key", publicKey, "Used to verify interaction signatures. Public."),
+      field("Bot token", token, "Developer Portal → Bot → Reset Token. Written to .env, never shown again."),
+      field("Client secret", clientSecret, "OAuth2 only, and never needed to log in."),
+      field("Your Discord user id", owner,
+        `Makes you the owner of !secret.me, !affinity and !wipe. Currently ${owners ? "set" : "nobody"}.`)),
+    el("div", { className: "row" }, save, note),
+    invite);
+}
+
+// --- editors ---------------------------------------------------------------------
+// `keep` is the text to open with when re-opening a file that render() is
+// reloading underneath an in-progress edit.
+async function openEditor(path, keep) {
+  // A re-render while somebody is halfway through a file must not throw the
+  // typing away. openEditor is the only thing that opens a file, so the check
+  // lives here rather than in render() - doing it in render() meant two editors
+  // for one file, and the slower fetch finished second and undid the fix.
+  if (keep === undefined && EDITING && EDITING.path === path) keep = EDITING.content;
+  const isNamed = ["persona.md", "config.json", "stickers.json"].includes(path);
+  const url = isNamed
+    ? `/named/${path === "persona.md" ? "persona" : path.replace(".json", "")}`
+    : `/file/${encodeURIComponent(path)}`;
+  let data;
+  if (typeof keep === "string") data = { content: keep };
+  else {
+    try { data = await api(url); } catch (e) { return toast(e.message, true); }
+  }
+
+  const area = el("textarea", { className: "editor-area", value: data.content, spellcheck: false });
+  const status = el("span", { className: "hint" });
+  const dirtyChip = el("span", { className: "chip warn", hidden: true }, "unsaved");
+  const saveBtn = el("button", { className: "btn btn-primary" }, "Save");
+  // From here on a re-render must bring the editor back rather than replace it.
+  EDITING = { path, content: data.content };
+
+  const unsaved = () => { dirtyChip.hidden = area.value === data.content; };
+  area.oninput = () => { EDITING = { path, content: area.value }; unsaved(); };
+
+  const save = async () => {
+    saveBtn.disabled = true;
+    try {
+      const res = await api(url, { method: "PUT", body: JSON.stringify({ content: area.value }) });
+      toast(`Saved ${res.saved}${res.restartNeeded ? " - restart the bot to apply config" : ""}`);
+      EDITING = null;
+      data.content = area.value;
+      dirtyChip.hidden = true;
+      status.textContent = "Saved.";
+      STATE = await api("/");
+    } catch (e) {
+      toast(e.message, true);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  };
+  saveBtn.onclick = save;
+  SAVING = save;
+
+  const copyBtn = el("button", { className: "btn btn-ghost" }, "Copy");
+  copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(area.value);
+      toast("Copied to the clipboard");
+    } catch {
+      toast("Could not reach the clipboard - select the text and copy it", true);
+    }
+  };
+
+  const back = el("button", { className: "btn btn-ghost" }, "Back");
+  back.onclick = () => {
+    EDITING = null;
+    SAVING = null;
+    if (path.startsWith("skills/")) VIEW = "skills";
+    else if (path.startsWith("memory/")) VIEW = "people";
+    else if (path === "persona.md") VIEW = "persona";
+    else if (path === "config.json") VIEW = "config";
+    else VIEW = "stickers";
+    navigateTo(VIEW);
+  };
+
+  const delBtn = el("button", { className: "btn btn-danger" }, "Delete");
+  delBtn.title = "Delete this file. A backup is written before a reset, but not before this.";
+  delBtn.onclick = async () => {
+    if (!confirm(`Delete ${path}?`)) return;
+    try {
+      await api(`/file/${encodeURIComponent(path)}`, { method: "DELETE" });
+      toast(`Deleted ${path}`);
+      EDITING = null;
+      SAVING = null;
+      STATE = await api("/");
+      render();
+    } catch (e) { toast(e.message, true); }
+  };
+
+  const v = $("#view");
+  swap(v,
+    head(path, "Edit this file directly. Ctrl-S saves."),
+    panel("Editor", `${area.value.length.toLocaleString()} characters`,
+      area,
+      path === "config.json"
+        ? el("div", { className: "notice info", style: "margin:12px 0 0" }, el("span", { className: "dot" }),
+            el("div", {}, "config.json is re-read on restart. Edits to persona, skills and stickers apply on the next message."))
+        : null,
+      el("div", { className: "bar" },
+        saveBtn,
+        copyBtn,
+        dirtyChip,
+        el("span", { className: "spacer" }),
+        status,
+        path.startsWith("skills/") ? delBtn : null,
+        back)),
+    ...STATE.skills.filter(x => path === `skills/${x.file}`).map(x =>
+      panel("Skill frontmatter", x.keywords.join(", ") || "no keywords",
+        el("p", { className: "hint mb-0" }, x.always
+          ? "always: true, so it is pinned to every message she sees."
+          : "Matched by keyword, so it only appears in the conversations that need it.")))
+  );
+}
+
+function persona(v) { openEditor("persona.md"); }
+function configView(v) { openEditor("config.json"); }
+
+// --- model ------------------------------------------------------------------------
+// Which provider is open for editing, kept across a re-render so saving does
+// not fold the form away from under the pointer.
+let MODEL_EDITING = null;
+
+function modelSettings(v) {
+  const providers = (STATE.models && STATE.models.providers) || [];
+  const choices = (STATE.models && STATE.models.choices) || [];
+  const current = STATE.model;
+  const active = providers.find(p => p.id === current) || choices.find(c => c.id === current);
+  const listBox = el("div", { className: "provider-list" });
+
+  const setPrimary = async id => {
+    try {
+      await post("/model", { model: id });
+      STATE = await api("/");
+      fillModels();
+      render();
+      toast(`Primary: ${id}`);
+    } catch (e) { toast(e.message, true); }
+  };
+
+  const removeProvider = async provider => {
+    if (!confirm(`Remove the "${provider.name || provider.id}" provider?`)) return;
+    try {
+      await api(`/provider/${encodeURIComponent(provider.id)}`, { method: "DELETE" });
+      STATE = await api("/");
+      if (MODEL_EDITING === provider.id) MODEL_EDITING = null;
+      fillModels();
+      render();
+      toast("Provider removed");
+    } catch (e) { toast(e.message, true); }
+  };
+
+  const providerForm = (entry, isNew) => {
+    const idIn = el("input", { value: entry.id || "", placeholder: "gemini", disabled: !isNew, spellcheck: false });
+    const nameIn = el("input", { value: entry.name || "", placeholder: "Gemini", spellcheck: false });
+    const urlIn = el("input", { value: entry.baseUrl || "", placeholder: "https://api.example.com/v1", spellcheck: false });
+    const modelIn = el("input", { value: entry.model || "", placeholder: "model-name", spellcheck: false });
+    const envIn = el("input", { value: entry.apiKeyEnv || "", placeholder: "PROVIDER_API_KEY", spellcheck: false });
+    const prefixIn = el("input", { value: entry.apiKeyEnvPrefix || "", placeholder: "PROVIDER_API_KEY_", spellcheck: false });
+    const keyIn = el("input", {
+      type: "password", value: "", autocomplete: "off", spellcheck: false,
+      placeholder: entry.hasKey ? "a key is saved - type to replace it" : "paste the API key",
+    });
+    let enabled = entry.enabled !== false;
+    const enabledSw = toggleSwitch(enabled, on => { enabled = on; }, "enabled");
+
+    const picker = el("select", { hidden: true, "aria-label": "Fetched models" });
+    picker.onchange = () => { if (picker.value) modelIn.value = picker.value; };
+
+    const fetchBtn = el("button", { className: "btn btn-sm" }, "Fetch models");
+    fetchBtn.title = "Ask this provider which models it serves";
+    fetchBtn.onclick = async () => {
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = "Fetching…";
+      try {
+        const res = await post("/provider/models", {
+          id: isNew ? "" : entry.id,
+          name: nameIn.value, baseUrl: urlIn.value,
+          apiKeyEnv: envIn.value, apiKeyEnvPrefix: prefixIn.value,
+          apiKey: keyIn.value,
+        });
+        const models = res.models || [];
+        picker.replaceChildren(
+          el("option", { value: "" }, `${models.length} model${models.length === 1 ? "" : "s"} - pick one`),
+          ...models.map(m => el("option", { value: m }, m)));
+        picker.hidden = models.length === 0;
+        toast(`${models.length} models from ${nameIn.value || entry.id}`);
+      } catch (e) { toast(e.message, true); }
+      finally { fetchBtn.disabled = false; fetchBtn.textContent = "Fetch models"; }
+    };
+
+    const saveBtn = el("button", { className: "btn btn-primary" }, isNew ? "Add provider" : "Save provider");
+    saveBtn.onclick = async () => {
+      saveBtn.disabled = true;
+      try {
+        await post("/provider", {
+          id: idIn.value.trim(), name: nameIn.value.trim(),
+          baseUrl: urlIn.value.trim(), model: modelIn.value.trim(),
+          apiKeyEnv: envIn.value.trim(), apiKeyEnvPrefix: prefixIn.value.trim(),
+          enabled, apiKey: keyIn.value,
+        });
+        STATE = await api("/");
+        MODEL_EDITING = null;
+        fillModels();
+        render();
+        toast("Provider saved");
+      } catch (e) { toast(e.message, true); saveBtn.disabled = false; }
+    };
+
+    const cancelBtn = el("button", { className: "btn btn-ghost" }, "Cancel");
+    cancelBtn.onclick = () => { MODEL_EDITING = null; paint(); };
+
+    return el("div", { className: "prov-form" },
+      field("Name", nameIn),
+      field("Provider id", idIn, "The id used in config.json and by the primary picker."),
+      field("Base URL", urlIn, "The OpenAI-compatible endpoint. /v1 is added to the chat URL when you leave it off."),
+      field("Model", modelIn, "Type it, or press Fetch models and choose from the list."),
+      field("API key variable", envIn, "The .env name this provider reads its key from."),
+      field("Numbered key prefix", prefixIn, "Optional: PREFIX_1, PREFIX_2 ... become extra keys."),
+      field("API key", keyIn, "Saved to .env, never to config.json, and never shown again."),
+      el("div", { className: "prov-tools" },
+        picker, fetchBtn,
+        el("span", { className: "spacer" }),
+        el("span", { className: "hint" }, "Enabled"),
+        enabledSw,
+        cancelBtn, saveBtn));
+  };
+
+  const providerCard = provider => {
+    const editing = MODEL_EDITING === provider.id;
+    const primary = provider.id === current;
+    const useBtn = el("button", { className: "btn btn-sm" }, "Use");
+    useBtn.disabled = primary;
+    useBtn.onclick = () => setPrimary(provider.id);
+
+    const editBtn = el("button", { className: "btn btn-sm" }, editing ? "Close" : "Edit");
+    editBtn.onclick = () => { MODEL_EDITING = editing ? null : provider.id; paint(); };
+
+    const delBtn = el("button", { className: "btn btn-sm btn-danger" }, "Remove");
+    delBtn.onclick = () => removeProvider(provider);
+
+    return el("div", { className: `prov${editing ? " open" : ""}` },
+      el("div", { className: "prov-head" },
+        logoNode(provider),
+        el("div", { className: "prov-body" },
+          el("div", { className: "prov-name" },
+            el("span", {}, provider.name || provider.id),
+            primary ? chip("primary", "accent") : null,
+            provider.enabled === false ? chip("disabled", "warn") : null),
+          el("div", { className: "prov-meta" },
+            el("code", {}, provider.id), " · ", provider.model || "no model set",
+            " · ", provider.baseUrl)),
+        el("div", { className: "prov-actions" },
+          chip(provider.keyCount ? `${provider.keyCount} key${provider.keyCount === 1 ? "" : "s"}` : "no key",
+            provider.keyCount ? "ok" : "warn"),
+          useBtn, editBtn, delBtn)),
+      editing ? providerForm(provider, false) : null);
+  };
+
+  function paint() {
+    const cards = providers.map(providerCard);
+    if (MODEL_EDITING === "__new__") {
+      cards.unshift(el("div", { className: "prov open" },
+        el("div", { className: "prov-head" },
+          el("span", { className: "prov-mark" }, "+"),
+          el("div", { className: "prov-body" },
+            el("div", { className: "prov-name" }, el("span", {}, "New provider")),
+            el("div", { className: "prov-meta" }, "Fill this in, then Fetch models or Save."))),
+        providerForm({}, true)));
+    }
+    listBox.replaceChildren(...(cards.length
+      ? cards
+      : [empty("No providers yet", "Add one so she has a model to think through.")]));
+  }
+
+  const addBtn = el("button", { className: "btn btn-primary" }, "Add provider");
+  addBtn.onclick = () => { MODEL_EDITING = MODEL_EDITING === "__new__" ? null : "__new__"; paint(); };
+
+  const primarySel = el("select", { "aria-label": "Primary provider" },
+    ...providers.map(p => el("option", { value: p.id }, `${p.name || p.id} — ${p.model || "no model"}`)));
+  if (current) primarySel.value = current;
+  const usePrimary = el("button", { className: "btn btn-primary" }, "Make primary");
+  usePrimary.onclick = () => setPrimary(primarySel.value);
+
+  paint();
+
+  add(v,
+    head("Model & providers",
+      "Add or edit the OpenAI-compatible APIs she thinks through. API keys go to .env; everything else is saved to config.json and applies to new requests right away."),
+
+    panel("Primary provider", null,
+      el("div", { className: "row spread", style: "align-items:flex-end; gap:14px" },
+        el("div", { className: "grow" },
+          el("div", { className: "hint", style: "margin-bottom:4px" }, "SHE TALKS THROUGH"),
+          el("div", { className: "model-hero" },
+          active
+            ? el("span", { className: "model-hero-row" },
+                logoNode(active),
+                el("span", {}, active.name || active.id))
+            : "No provider"),
+          active ? el("div", { className: "hint" }, active.model || "") : null),
+        el("div", { className: "row", style: "gap:8px" }, primarySel, usePrimary))),
+
+    panel("Providers", `${providers.length} configured`,
+      notice("API keys are written to ", el("code", {}, ".env"), " and never to config.json. This page never reads a key back."),
+      el("div", { className: "row spread", style: "margin:12px 0" },
+        el("span", { className: "hint" }, "A fetched model list is a one-off lookup - nothing is saved until you press Save."),
+        addBtn),
+      listBox)
+  );
+}
+
+// --- presence ----------------------------------------------------------------------
+// The one place in the panel that knows the placeholder vocabulary, so the
+// chips and the preview can never drift apart.
+const PRESENCE_PLACEHOLDERS = ["{name}", "{prefix}", "{people}", "{servers}", "{activity}"];
+const PRESENCE_PRESETS = [
+  { label: "Watching the server", type: "watching", name: "the server", details: "{activity}", state: "{servers} · {prefix}help for commands" },
+  { label: "Listening", type: "listening", name: "lo-fi beats", details: "{activity}", state: "{prefix}help if you need me" },
+  { label: "Competing", type: "competing", name: "Hmm, Interesting...", details: "{activity}", state: "{prefix}help for commands" },
+  { label: "Custom status", type: "custom", name: "curious", details: "", state: "" },
+];
+let PRESENCE_FOCUS = null;
+
+// The profile card, drawn from the form rather than from a saved snapshot, so
+// it updates as you type. Placeholders are filled the way the running bot
+// fills them; `{activity}` is the only one this page has to guess at.
+function presenceCard(p) {
+  const status = p.status || "online";
+  const detail = resolvePresenceText(p.details);
+  const line = resolvePresenceText(p.state);
+  const title = p.type === "custom"
+    ? (resolvePresenceText(p.name) || "custom status")
+    : `${cap(p.type || "playing")} ${resolvePresenceText(p.name) || ""}`.trim();
+  return [
+    el("div", { className: "presence-banner" }),
+    el("div", { className: "presence-avatar" },
+      STATE.bot.name.charAt(0).toUpperCase(),
+      portraitNode(),
+      el("span", { className: `presence-dot ${status}` })),
+    el("div", { className: "presence-name" },
+      STATE.bot.name,
+      el("span", { className: "presence-tag" }, "BOT"),
+      el("span", { className: `presence-status ${status}` }, status)),
+    el("div", { className: "presence-activity" },
+      el("div", { className: "presence-art-large" }, artNode(p.largeImage, STATE.bot.name.charAt(0).toUpperCase())),
+      el("div", { className: "presence-lines" },
+        el("div", { className: "presence-title" }, title || "…"),
+        detail ? el("div", { className: "presence-line" }, detail) : null,
+        line ? el("div", { className: "presence-line" }, line) : null,
+        p.smallImage
+          ? el("div", { className: "presence-art-small", title: resolvePresenceText(p.smallText) || "" },
+              artNode(p.smallImage, "•"))
+          : null)),
+  ];
+}
+
+// --- usage ------------------------------------------------------------------
+// What each model call cost. The bot writes one line per call to usage/*.jsonl
+// and this only draws it, so the numbers here are whatever the providers
+// actually reported - nothing is estimated on the page.
+//
+// Cost is shown only for models priced in config.json. When some calls in the
+// window have no price, the panel says the total is a floor rather than
+// quietly adding up the priced ones and calling it the whole spend.
+let USAGE_DAYS = 30;
+
+function usageBars(byDay, days) {
+  // Day keys are UTC, because that is how the recorder buckets them.
+  const byDate = new Map(byDay.map(d => [d.day, d]));
+  const now = new Date();
+  const keys = [];
+  const cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(cursor);
+    d.setUTCDate(d.getUTCDate() - i);
+    keys.push(d.toISOString().slice(0, 10));
+  }
+
+  // Only span back as far as recording actually goes. On an install that started
+  // this morning a 30-day window drew 29 empty stubs, which read as a chart of
+  // activity rather than as the absence of any - so the first days are dropped
+  // rather than padded. Days inside the span that genuinely had no calls keep a
+  // stub, because that is a real quiet day and worth seeing.
+  const firstKey = byDay.length ? byDay[0].day : null;
+  const from = firstKey ? keys.indexOf(firstKey) : -1;
+  // -1 means the oldest recorded day is outside this window entirely, so the
+  // whole window stands. Anything else trims the run that predates it.
+  const shown = from >= 0 ? keys.slice(from) : keys;
+
+  const out = shown.map(key =>
+    byDate.get(key) || { day: key, prompt: 0, completion: 0, total: 0, calls: 0, unpriced: 0 });
+  const peak = Math.max(1, ...out.map(d => d.total || 0));
+  const tallest = 100;
+  return el("div", {},
+    el("div", { className: "usage-chart" },
+      ...out.map(day => {
+        const prompt = day.prompt || 0, completion = day.completion || 0;
+        const total = prompt + completion;
+        const height = total ? Math.max(3, (total / peak) * tallest) : 2;
+        const title = `${day.day} · ${total.toLocaleString()} tokens`
+          + ` (in ${prompt.toLocaleString()}, out ${completion.toLocaleString()})`
+          + ` · ${day.calls || 0} call(s)`;
+        if (!total) {
+          return el("div", { className: "ucol empty-day", title }, el("div", { className: "seg" }));
+        }
+        const completionH = total ? (completion / total) * height : 0;
+        const promptH = height - completionH;
+        return el("div", { className: "ucol", title },
+          el("div", { className: "seg completion", style: `height:${completionH.toFixed(2)}px` }),
+          el("div", { className: "seg prompt", style: `height:${promptH.toFixed(2)}px` }));
+      })),
+    el("div", { className: "usage-axis" },
+      el("span", {}, out.length ? out[0].day.slice(5) : ""),
+      el("span", {}, `${out.length} day(s) shown · peak ${shortNum(peak)}`),
+      el("span", {}, out.length ? out[out.length - 1].day.slice(5) : "")));
+}
+
+function usageRow(name, sub, row, peak, { withCost = true } = {}) {
+  const priced = row.unpriced === 0 && row.calls > 0;
+  return el("div", { className: "usage-row" },
+    el("div", { className: "who" },
+      el("b", {}, name),
+      sub ? el("span", { className: "hint" }, sub) : null,
+      el("div", { className: "usage-share" },
+        el("i", { style: `width:${peak ? Math.max(2, (row.total / peak) * 100).toFixed(1) : 0}%` }))),
+    el("div", { className: "num-cell", title: `${(row.prompt || 0).toLocaleString()} prompt tokens` },
+      shortNum(row.prompt)),
+    el("div", { className: "num-cell", title: `${(row.completion || 0).toLocaleString()} completion tokens` },
+      shortNum(row.completion)),
+    el("div", { className: "num-cell", title: `${(row.total || 0).toLocaleString()} tokens total` },
+      shortNum(row.total)),
+    el("div", { className: "num-cell", title: `${row.calls || 0} call(s), ${ms(row.avgLatencyMs)} average` },
+      `${row.calls || 0} · ${ms(row.avgLatencyMs)}`),
+    withCost
+      ? el("div", { className: "num-cell money", title: priced ? "priced in config.json" : "no price configured for this model" },
+          money(row.cost, priced))
+      : null);
+}
+
+// The facts you can only get by reading every call rather than summing a
+// column: her rhythm, not her totals. Each row is either a real measurement or
+// deliberately absent - one call in a day has no hourly pattern, so that row is
+// left out rather than dressed up as one.
+function usageFacts(d, u) {
+  if (!d || !u || !u.totals || !u.totals.calls) return null;
+  const when = ts => (ts ? new Date(ts).toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  }) : "—");
+  const rows = [
+    kv("tokens per call", shortNum(d.tokensPerCall)),
+    // Deliberately labelled: prompt processing is inside this number, so it sits
+    // below a benchmark's output rate and is only fair against her own calls.
+    kv("output tok/s", `${d.outPerSecond} (incl. prompt)`),
+    kv("prompt : completion",
+      `${((u.totals.prompt || 0) / Math.max(1, u.totals.completion || 0)).toFixed(1)} : 1`),
+    d.peakDay ? kv("busiest day", `${d.peakDay.day} · ${shortNum(d.peakDay.total)} tokens`) : null,
+    d.busiestHour
+      ? kv("busiest hour", `${String(d.busiestHour.hour).padStart(2, "0")}:00`
+          + `–${String((d.busiestHour.hour + 1) % 24).padStart(2, "0")}:00`
+          + ` · ${d.busiestHour.calls} call(s) over ${d.busiestHour.hoursActive}h active`)
+      : null,
+    kv("first call", when(d.firstTs)),
+    kv("last call", when(d.lastTs)),
+    kv("priced calls", `${d.pricedCalls} of ${u.totals.calls}`),
+  ].filter(Boolean);
+  return el("div", { className: "kv" }, ...rows);
+}
+
+// The same shape as the provider/source/model tables, pointed at days. A chart
+// says a Tuesday was busy; this says what she spent on it.
+function usageDayTable(byDay) {
+  const days = (byDay || []).filter(d => d.calls > 0);
+  if (!days.length) return null;
+  const peak = Math.max(1, ...days.map(d => d.total || 0));
+  const weekday = key => {
+    const d = new Date(`${key}T00:00:00Z`);
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, {
+      weekday: "short", timeZone: "UTC",
+    });
+  };
+  return el("div", { className: "usage-list" },
+    el("div", { className: "usage-row head" },
+      el("div", {}, "Day"),
+      el("div", { className: "num-cell" }, "in"),
+      el("div", { className: "num-cell" }, "out"),
+      el("div", { className: "num-cell" }, "total"),
+      el("div", { className: "num-cell" }, "calls · avg"),
+      el("div", { className: "num-cell" }, "cost")),
+    ...days.map(day => usageRow(day.day, weekday(day.day), day, peak)));
+}
+
+function usageView(v) {
+  const u = STATE.usage || {};
+  const t = u.totals || { calls: 0, prompt: 0, completion: 0, total: 0, cost: 0, avgLatencyMs: 0 };
+  const byProvider = u.byProvider || [];
+  const peakProvider = Math.max(0, ...byProvider.map(p => p.total || 0));
+  const complete = u.costComplete !== false && t.calls > 0;
+
+  const windows = el("div", { className: "row", role: "group", "aria-label": "time window" },
+    ...[1, 7, 14, 30, 90, 365].map(days =>
+      el("button", {
+        className: `btn btn-sm${USAGE_DAYS === days ? " btn-primary" : " btn-ghost"}`,
+        onclick: async () => {
+          if (USAGE_DAYS === days) return;
+          USAGE_DAYS = days;
+          try {
+            STATE.usage = await api(`/api/usage?days=${days}`);
+            render();
+          } catch (e) { toast(e.message, true); }
+        },
+      }, days === 1 ? "today" : `${days}d`)));
+
+  const refresh = async () => {
+    try {
+      STATE.usage = await api(`/api/usage?days=${USAGE_DAYS}`);
+      render();
+      toast("usage refreshed");
+    } catch (e) { toast(e.message, true); }
+  };
+
+  const confirmIn = el("input", { placeholder: "type CLEAR to confirm", style: "display:none" });
+  const clearBtn = el("button", { className: "btn btn-danger btn-sm" }, "Clear history");
+  let armed = false;
+  clearBtn.onclick = async () => {
+    if (!armed) {
+      armed = true;
+      confirmIn.style.display = "";
+      confirmIn.value = "";
+      clearBtn.textContent = "Confirm";
+      confirmIn.focus();
+      return;
+    }
+    clearBtn.disabled = true;
+    try {
+      const out = await api("/api/usage/clear", { method: "POST" });
+      STATE.usage = out.usage;
+      toast(`removed ${out.removed} day file(s)`);
+      render();
+    } catch (e) { toast(e.message, true); }
+  };
+  confirmIn.oninput = () => { clearBtn.disabled = confirmIn.value.trim().toUpperCase() !== "CLEAR"; };
+  confirmIn.onkeydown = e => { if (e.key === "Enter" && !clearBtn.disabled) clearBtn.click(); };
+
+  // Money splits three ways, and the difference matters: a call with a price, a
+  // call without one, and a window where nothing at all is priced. Summing only
+  // the priced calls gives a real figure in the second case (a floor, because the
+  // rest is unknown) and a meaningless $0 in the third - $0 reads as "these calls
+  // were free", which is a claim about money nobody has made. So when not one
+  // call in the window has a price, the tile shows that the answer is unknown
+  // rather than printing a number we do not have.
+  const d = u.derived || {};
+  const pricedCalls = Number.isFinite(d.pricedCalls) ? d.pricedCalls : 0;
+  const somePriced = pricedCalls > 0;
+  const costText = money(t.cost, t.calls > 0 && somePriced);
+  const costSub = !somePriced
+    ? `unknown · no price set for ${t.calls} call(s)`
+    : complete
+      ? `${u.pricedModels.length} priced model(s)`
+      : `floor — ${t.unpriced} of ${t.calls} call(s) had no price`;
+  const splitTotal = Math.max(1, (t.prompt || 0) + (t.completion || 0));
+
+  add(v,
+    head("Usage",
+      "What every model call cost, in tokens and money. One line per call is written to usage/*.jsonl as she answers; nothing here is estimated.",
+      windows,
+      el("button", { className: "btn btn-sm", onclick: refresh }, "Refresh"),
+      clearBtn,
+      confirmIn),
+
+    !u.enabled
+      ? notice(el("b", {}, "Usage counting is off in config.json"), " — set usage.enabled to true and it starts recording again.")
+      : null,
+
+    u.calls === 0 && !t.calls
+      ? empty("No calls recorded yet",
+          el("p", { className: "hint mb-0" }, "She has not used a model since this was switched on, or the history was cleared."))
+      : null,
+
+    t.calls
+      ? el("div", { className: "tiles" },
+          stat("Tokens", shortNum(t.total), `${shortNum(t.prompt)} in · ${shortNum(t.completion)} out`),
+          stat("Cost", costText, costSub),
+          stat("Calls", String(t.calls), `over ${u.days} day(s)`),
+          stat("Average latency", ms(t.avgLatencyMs),
+            t.cached ? `${shortNum(t.cached)} cached prompt tokens` : "no cached prompt tokens"),
+          t.reasoning
+            ? stat("Reasoning tokens", shortNum(t.reasoning), "counted inside completion")
+            : null)
+      : null,
+
+    t.calls && !somePriced
+      ? notice(el("b", {}, "Cost is unknown, not zero"),
+          ` — none of the ${t.calls} call(s) in this window used a model with a price in `,
+          el("code", {}, "usage.prices"),
+          ". Token counts are real and unaffected; add a price and the spend shows up here.")
+      : t.calls && !complete
+        ? notice(el("b", {}, "The cost total is a floor"),
+            ` — ${t.unpriced} of ${t.calls} call(s) in this window used a model with no price configured.`)
+        : null,
+
+    t.calls
+      ? panel("Where the tokens go", `${u.days} day window`,
+          el("div", { className: "usage-split", title: `${t.prompt} prompt, ${t.completion} completion` },
+            el("i", {
+              className: "prompt",
+              style: `width:${((t.prompt || 0) / splitTotal * 100).toFixed(2)}%`,
+            }),
+            el("i", {
+              className: "completion",
+              style: `width:${((t.completion || 0) / splitTotal * 100).toFixed(2)}%`,
+            })),
+          el("div", { className: "usage-legend", style: "margin-top:9px" },
+            el("span", {}, el("i", { className: "prompt" }), `prompt ${(t.prompt || 0).toLocaleString()}`),
+            el("span", {}, el("i", { className: "completion" }), `completion ${(t.completion || 0).toLocaleString()}`)))
+      : null,
+
+    t.calls
+      ? panel("Daily", `${(u.byDay || []).length} day(s) with calls`, usageBars(u.byDay || [], u.days))
+      : null,
+
+    t.calls
+      ? panel("Every day", `${(u.byDay || []).filter(x => x.calls > 0).length} day(s) with calls`,
+          usageDayTable(u.byDay))
+      : null,
+
+    t.calls
+      ? panel("Her rhythm", "measured from every call in the window", usageFacts(d, u))
+      : null,
+
+    byProvider.length
+      ? panel("By provider", `${byProvider.length} provider(s)`,
+          el("div", { className: "usage-list" },
+            el("div", { className: "usage-row head" },
+              el("div", {}, "Provider"),
+              el("div", { className: "num-cell" }, "in"),
+              el("div", { className: "num-cell" }, "out"),
+              el("div", { className: "num-cell" }, "total"),
+              el("div", { className: "num-cell" }, "calls · avg"),
+              el("div", { className: "num-cell" }, "cost")),
+            ...byProvider.map(p => usageRow(p.provider, null, p, peakProvider))))
+      : null,
+
+    (u.bySource || []).length
+      ? panel("What she spent it on", "which part of her was thinking",
+          el("div", { className: "usage-list" },
+            el("div", { className: "usage-row head" },
+              el("div", {}, "Purpose"),
+              el("div", { className: "num-cell" }, "in"),
+              el("div", { className: "num-cell" }, "out"),
+              el("div", { className: "num-cell" }, "total"),
+              el("div", { className: "num-cell" }, "calls · avg"),
+              el("div", { className: "num-cell" }, "cost")),
+            ...u.bySource.map(s => usageRow(
+              SOURCE_LABEL[s.source] || s.source, null, s, peakProvider))))
+      : null,
+
+    (u.byModel || []).length
+      ? panel("By model", `${u.byModel.length} model(s) used`,
+          el("div", { className: "usage-list" },
+            el("div", { className: "usage-row head" },
+              el("div", {}, "Model"),
+              el("div", { className: "num-cell" }, "in"),
+              el("div", { className: "num-cell" }, "out"),
+              el("div", { className: "num-cell" }, "total"),
+              el("div", { className: "num-cell" }, "calls · avg"),
+              el("div", { className: "num-cell" }, "cost")),
+            ...u.byModel.map(m => usageRow(m.model, null, m, peakProvider))))
+      : null,
+
+    (u.recent || []).length
+      ? panel("Recent calls", `last ${u.recent.length}`, el("div", { className: "log-box" },
+          ...u.recent.map(r => el("div", { className: "log-row" },
+            el("span", { className: "log-t" }, new Date(r.ts).toLocaleTimeString()),
+            el("span", { className: "log-l" }, SOURCE_LABEL[r.source] || r.source || "call"),
+            el("span", { className: "log-m" },
+              `${r.provider} / ${r.model} — ${(r.total || 0).toLocaleString()} tokens`
+              + ` (${(r.prompt || 0).toLocaleString()} in, ${(r.completion || 0).toLocaleString()} out)`
+              + ` · ${money(r.cost, r.cost !== null && r.cost !== undefined)}`
+              + ` · ${ms(r.latencyMs)}${r.streamed ? " · streamed" : ""}`)))))
+      : null,
+
+    panel("Reading these numbers", null,
+      el("div", { className: "grid gauto" },
+        el("p", { className: "hint mb-0" },
+          "Tokens come from the provider's own usage block, so they are what was billed. ",
+          "Cached prompt tokens are counted separately because they are billed at their own rate."),
+        el("p", { className: "hint mb-0" },
+          "Cost only appears for models priced in config.json under ",
+          el("code", {}, "usage.prices"),
+          " — dollars per million tokens, as ",
+          el("code", {}, '{"provider:model": {"in": 3.0, "out": 15.0}}'),
+          ". Unpriced models still show their tokens."),
+        el("p", { className: "hint mb-0" },
+          "History is kept for ",
+          `${u.keepDays || 90} day(s) in usage/*.jsonl, one file per day. Clearing removes those files and nothing else.`)))
+  );
+}
+
+function presenceSettings(v) {
+  const cfg = STATE.presence.config || {};
+  const status = el("select", {},
+    ...["online", "idle", "dnd", "invisible"].map(value => el("option", { value }, value === "dnd" ? "Do not disturb" : value)));
+  const type = el("select", {},
+    ...["playing", "watching", "listening", "competing", "custom"].map(value => el("option", { value }, value)));
+  const name = el("input", { value: cfg.name || "", maxLength: 128, placeholder: "the server" });
+  const details = el("input", { value: cfg.details || "", maxLength: 128, placeholder: "{activity}" });
+  const state = el("input", { value: cfg.state || "", maxLength: 128, placeholder: "{servers} · {prefix}help for commands" });
+  const largeImage = el("input", { value: cfg.largeImage || "", maxLength: 128, placeholder: "yuyu_main or https://…/art.png" });
+  const largeText = el("input", { value: cfg.largeText || "", maxLength: 128, placeholder: "Yuyu" });
+  const smallImage = el("input", { value: cfg.smallImage || "", maxLength: 128, placeholder: "online_badge" });
+  const smallText = el("input", { value: cfg.smallText || "", maxLength: 128, placeholder: "Online" });
+  status.value = cfg.status || "online";
+  type.value = cfg.type || "watching";
+
+  const read = () => ({
+    status: status.value, type: type.value, name: name.value,
+    details: details.value, state: state.value,
+    largeImage: largeImage.value, largeText: largeText.value,
+    smallImage: smallImage.value, smallText: smallText.value,
+  });
+
+  const preview = el("div", { className: "presence-preview" });
+  const paint = () => swap(preview, ...presenceCard(read()));
+
+  [status, type].forEach(select => { select.onchange = paint; });
+  [name, details, state, largeImage, largeText, smallImage, smallText].forEach(input => {
+    input.oninput = paint;
+    input.onfocus = () => { PRESENCE_FOCUS = input; };
+  });
+  paint();
+
+  const applyPreset = preset => {
+    status.value = preset.status; type.value = preset.type;
+    name.value = preset.name; details.value = preset.details; state.value = preset.state;
+    paint();
+  };
+
+  const save = el("button", { className: "btn btn-primary", title: "Save and apply this presence to Discord" }, "Apply presence");
+  save.onclick = async () => {
+    save.disabled = true;
+    save.textContent = "Applying…";
+    try {
+      const result = await api("/presence", { method: "POST", body: JSON.stringify(read()) });
+      STATE = await api("/");
+      render();
+      toast(result.applied ? "Discord presence updated" : `Saved; ${result.why || "presence applies when the bot reconnects"}`);
+    } catch (e) {
+      toast(e.message, true);
+      save.disabled = false;
+    } finally {
+      save.textContent = "Apply presence";
+    }
+  };
+
+  add(v,
+    head("Discord presence", "Customize what people see on her Discord profile. Changes save to config and apply immediately while the bot is connected."),
+
+    panel("Live preview", null,
+      preview,
+      el("p", { className: "hint", style: "margin-top:10px" },
+        "Placeholders are filled in as Discord shows them. ",
+        el("code", {}, "{activity}"), " is the one the running bot supplies.")),
+
+    panel("Presets", "start from one of these, then tweak",
+      el("div", { className: "preset-row" },
+        ...PRESENCE_PRESETS.map(preset => {
+          const b = el("button", { className: "btn btn-sm" }, preset.label);
+          b.onclick = () => applyPreset(preset);
+          return b;
+        }))),
+
+    panel("Activity", "every field below is what she pushes to Discord",
+      el("div", { className: "grid g2" },
+        field("Online status", status),
+        field("Activity type", type),
+        field("Activity name", name, "The short headline shown after Playing, Watching, Listening, or Competing."),
+        field("Details", details, "First activity line. Supports {name}, {prefix}, {people}, {servers}, and {activity}."),
+        field("State", state, "Second activity line. Supports the same placeholders."),
+        field("Large image asset key", largeImage, "A rich-presence asset key uploaded in the Developer Portal, or a direct https image URL."),
+        field("Large image hover text", largeText),
+        field("Small image", smallImage, "Optional small badge: another registered asset key, or an https URL."),
+        field("Small image hover text", smallText)),
+      el("div", { className: "ph-chips" },
+        el("span", { className: "hint" }, "Insert into the focused field:"),
+        ...PRESENCE_PLACEHOLDERS.map(token => {
+          const b = el("button", { className: "ph-chip", type: "button" }, token);
+          b.onclick = () => { insertInto(PRESENCE_FOCUS, token); paint(); };
+          return b;
+        })),
+      el("div", { className: "row", style: "margin-top:16px" }, save))
+  );
+}
+
+// --- stickers -----------------------------------------------------------------------
+function stickers(v) {
+  const s = STATE.stickers || {};
+  const fileIn = el("input", { type: "file", accept: "image/*", style: "display:none" });
+  fileIn.onchange = async () => {
+    const file = fileIn.files[0];
+    if (!file) return;
+    const data = await new Promise((res) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.readAsDataURL(file);
+    });
+    try {
+      await api("/sticker", { method: "POST", body: JSON.stringify({ name: file.name, data }) });
+      toast(`Saved stickers/${file.name}`);
+      STATE = await api("/");
+      render();
+    } catch (e) { toast(e.message, true); }
+    fileIn.value = "";
+  };
+
+  const tiles = (s.files || []).map(f => el("div", { className: "sticker-item" },
+    el("img", { src: f.url, alt: f.name }),
+    el("b", {}, f.name),
+    el("span", {}, `${Math.round(f.bytes / 1024)} KB`),
+    el("button", { className: "btn btn-sm btn-danger", onclick: async ev => {
+      ev.stopPropagation();
+      if (!confirm(`Delete ${f.name}?`)) return;
+      try {
+        await api(`/sticker/${encodeURIComponent(f.name)}`, { method: "DELETE" });
+        toast("Deleted");
+        STATE = await api("/"); render();
+      } catch (e) { toast(e.message, true); }
+    } }, "Delete")
+  ));
+
+  add(v,
+    head("Stickers", "Discord blocks bots from sending real stickers, so she sends the image as an attachment instead."),
+
+    panel("Sticker images", `${(s.files || []).length} uploaded`,
+      el("div", { className: "row", style: "margin-bottom:12px" },
+        el("button", { className: "btn", onclick: () => fileIn.click() }, "Upload image"), fileIn),
+      tiles.length
+        ? el("div", { className: "sticker-grid" }, tiles)
+        : empty("No images yet", "Upload sticker images to get started."),
+      s.missing && s.missing.length
+        ? el("div", { className: "notice", style: "margin:14px 0 0" }, el("span", { className: "dot" }),
+            el("div", {}, "stickers.json references files that do not exist: ", el("code", {}, s.missing.join(", "))))
+        : null),
+
+    panel("Emoji fallback", "images win, emoji are the backup",
+      el("div", { className: "grid gauto" },
+        stat("Server emoji", String(s.serverEmoji ?? 0), "auto-discovered"),
+        stat("Keyword reactions", String(s.emojiReactions ?? 0), "custom emoji"),
+        stat("Keyword stickers", String(s.emojiStickers ?? 0), "custom emoji"),
+        stat("Linked images", String((s.images || []).length), "in stickers.json")),
+      el("p", { className: "hint", style: "margin-top:12px" },
+        "Emoji are only used when no image matches, so images win by default.")),
+
+    panel("stickers.json", null,
+      el("pre", {}, el("code", {},
+        'Reference an image with a "file" key, or a custom emoji with "emoji":\n' +
+        '  { "file": "hug.png", "keywords": ["hug", "thanks"] }\n' +
+        '  { "emoji": "<:pepe:123456>", "keywords": ["pepe"] }')),
+      el("button", { className: "btn", onclick: () => openEditor("stickers.json") }, "Edit stickers.json"))
+  );
+}
+
+// --- skills --------------------------------------------------------------------------
+function skills(v) {
+  const area = el("textarea", { placeholder: "---\nname: My Skill\nkeywords: [a, b]\n---\n\nWhat it tells her to do.", spellcheck: false });
+  const nameIn = el("input", { placeholder: "skill-name" });
+
+  add(v,
+    head("Skills", "Skills teach her new things. Always-on skills are pinned to every message."),
+
+    panel("New skill", null, el("div", { className: "skill-new" },
+      el("div", { className: "row" },
+        nameIn,
+        el("button", {
+          className: "btn btn-primary",
+          onclick: async () => {
+            if (!nameIn.value.trim()) return toast("give it a name", true);
+            try {
+              await api("/skill", { method: "POST", body: JSON.stringify({ name: nameIn.value.trim(), content: area.value }) });
+              toast(`Created skills/${nameIn.value.trim()}.md`);
+              STATE = await api("/");
+              nameIn.value = ""; area.value = "";
+              render();
+            } catch (e) { toast(e.message, true); }
+          }
+        }, "Create"),
+        el("span", { className: "hint" }, "always: true in the frontmatter pins it to every message")),
+      area)),
+
+    panel("Installed", `${STATE.skills.length} skills`, el("div", { className: "files" },
+      STATE.skills.map(s => el("a", {
+        className: "file", href: "#",
+        onclick: () => openEditor(`skills/${s.file}`),
+      },
+        el("b", {}, s.file),
+        el("span", {}, s.always ? "always on" : s.keywords.length ? s.keywords.slice(0, 6).join(", ") : "no keywords")))))
+  );
+}
+
+// --- people ---------------------------------------------------------------------------
+function people(v) {
+  if (!STATE.people.length) {
+    v.append(
+      head("People", "Nobody yet."),
+      empty("No people yet", "When someone talks to her, a memory file is created here automatically.")
+    );
+    return;
+  }
+
+  add(v,
+    head("People", "Everyone she knows. Facts are stored permanently in memory/*.md files, one per person.")
+  );
+
+  for (const p of STATE.people) {
+    const m = STATE.memory[p.slug];
+    const fields = SECTIONS
+      .filter(k => (m?.[k] ?? []).length)
+      .map(k => ({ name: `${SECTION_LABEL[k]} (${m[k].length})`, value: m[k].map(x => `• ${x}`).join("\n") }));
+
+    v.append(panel(p.name, m?.updated ? `updated ${m.updated.slice(0, 16).replace("T", " ")}` : null,
+      el("div", { className: "row spread" },
+        el("div", { className: "row" },
+          el("span", { className: "chip code" }, `memory/${p.slug}.md`),
+          m?.discordId ? el("span", { className: "chip" }, `discord ${m.discordId}`) : null,
+          m?.username ? el("span", { className: "chip" }, m.username) : null,
+          chip(`${p.count} fact${p.count === 1 ? "" : "s"}`)),
+        el("div", { className: "row" },
+          muteToggle(p),
+          el("button", { className: "btn btn-sm btn-ghost", onclick: () => openEditor(`memory/${p.slug}.md`) }, "Edit raw"))),
+      fields.length
+        ? el("div", { className: "grid g2", style: "margin-top:14px" },
+            fields.map(f => el("div", { className: "fact-block" },
+              el("div", { className: "k" }, f.name),
+              el("div", { className: "v" }, f.value))))
+        : el("p", { className: "hint", style: "margin-top:12px" }, "No facts stored yet.")
+    ));
+  }
+}
+
+// --- reset -----------------------------------------------------------------------------
+// The outcome of the last reset. It has to live outside this function: the view
+// is rebuilt from scratch a moment later, so a card prepended here would be
+// wiped off the page before anyone could read it.
+let LAST_RESET = null;
+
+function reset(v) {
+  const chosen = new Set();
+  const planBox = el("div", {}, el("p", { className: "hint mb-0" }, "Tick what to remove, then Preview."));
+  const confirmIn = el("input", { placeholder: "type RESET to confirm", style: "display:none" });
+  const goBtn = el("button", { className: "btn btn-danger" }, "Reset now");
+  const learnedBtn = el("button", { className: "btn btn-ghost" }, "Select all learned data");
+
+  const refresh = async () => { STATE = await api("/"); };
+
+  const boxes = STATE.resetTargets.map(t => {
+    const cb = el("input", { type: "checkbox" });
+    const row = el("label", { className: "target" },
+      cb,
+      el("span", { className: "target-name" }, t.label),
+      el("span", { className: "spacer" }),
+      chip(t.tier, t.tier === "authored" ? "warn" : ""),
+      t.optIn ? chip("opt-in") : null);
+    cb.onchange = () => {
+      if (cb.checked) chosen.add(t.key); else chosen.delete(t.key);
+      confirmIn.style.display = "none";
+      confirmIn.value = "";
+      goBtn.disabled = true;
+      planBox.replaceChildren(el("p", { className: "hint mb-0" }, "Tick what to remove, then Preview."));
+    };
+    return { t, row, cb };
+  });
+
+  learnedBtn.onclick = () => {
+    for (const { t, cb } of boxes) {
+      const on = t.tier === "learned" && !t.optIn;
+      cb.checked = on;
+      if (on) chosen.add(t.key); else chosen.delete(t.key);
+    }
+    confirmIn.style.display = "none"; confirmIn.value = ""; goBtn.disabled = true;
+  };
+
+  const doPreview = async () => {
+    try {
+      const plan = await api("/reset/preview", { method: "POST", body: JSON.stringify({ targets: [...chosen] }) });
+      if (!plan.removed.length) {
+        planBox.replaceChildren(el("p", { className: "hint mb-0" }, "Nothing selected."));
+        goBtn.disabled = true;
+        confirmIn.style.display = "none";
+        return;
+      }
+      planBox.replaceChildren(
+        el("div", { className: "plan" },
+          el("h3", {}, "This will permanently delete:"),
+          ...plan.removed.map(r => el("div", { style: "margin-bottom:10px" },
+            el("div", { className: "row", style: "gap:8px" },
+              el("b", {}, r.label),
+              chip(`${r.count} ${r.unit}`)),
+            r.detail?.length ? el("pre", {}, r.detail.join("\n")) : null)),
+          el("div", { className: "hint" }, "Kept: " + plan.kept.join(" · ")),
+          el("div", { className: "hint", style: "margin-top:8px" }, "A backup is written to backups/ first, so this is reversible."),
+          plan.typedConfirmation
+            ? el("div", { className: "chip warn", style: "margin-top:10px" },
+                `This deletes hand-written files - type ${plan.typedConfirmation} to continue.`)
+            : null));
+      goBtn.disabled = false;
+      confirmIn.style.display = plan.typedConfirmation ? "block" : "none";
+    } catch (e) {
+      planBox.replaceChildren(el("p", { className: "hint mb-0", style: "color:var(--bad)" }, e.message));
+    }
+  };
+
+  goBtn.disabled = true;
+  goBtn.onclick = async () => {
+    goBtn.disabled = true;
+    goBtn.textContent = "Working…";
+    try {
+      const res = await api("/reset/run", {
+        method: "POST",
+        body: JSON.stringify({ targets: [...chosen], confirm: confirmIn.value }),
+      });
+      LAST_RESET = res;
+      toast("Reset complete");
+      await refresh();
+      buildNav();
+      render();
+    } catch (e) {
+      LAST_RESET = null;
+      planBox.replaceChildren(el("p", { className: "hint mb-0", style: "color:var(--bad)" }, e.message));
+      toast(e.message, true);
+    } finally {
+      goBtn.textContent = "Reset now";
+    }
+  };
+
+  const backupBox = el("div", { className: "hint" }, "loading backups…");
+  (async () => {
+    try {
+      const { backups } = await api("/reset/backups");
+      backupBox.replaceChildren(
+        ...(backups.length
+          ? backups.map(b => el("div", { className: "backup-item" },
+              el("span", { className: "row" }, el("span", { className: "mono" }, b.id), chip(`${b.files?.length ?? 0} file(s)`)),
+              el("button", { className: "btn btn-sm", onclick: async ev => {
+                if (!confirm(`Restore ${b.id}? Current files with the same names are overwritten.`)) return;
+                try {
+                  const r = await api("/reset/restore", { method: "POST", body: JSON.stringify({ id: b.id }) });
+                  toast(`Restored ${r.restored.length} file(s)`);
+                  STATE = await api("/"); render();
+                } catch (err) { toast(err.message, true); }
+              } }, "Restore")))
+          : [el("div", { className: "hint" }, "No backups yet. One is written automatically before every reset.")])
+      );
+    } catch (e) {
+      backupBox.textContent = e.message;
+    }
+  })();
+
+  const t = STATE.totals ?? {};
+  add(v,
+    head("Reset", "Wipe what she knows. A backup is always written first, so this is reversible."),
+
+    LAST_RESET
+      ? panel("Done", "most recent reset",
+          el("div", { className: "row spread" },
+            el("div", { className: "grow" },
+              el("pre", { style: "max-height:120px" }, res_deleted_text(LAST_RESET)),
+              LAST_RESET.backup
+                ? el("div", { className: "hint" }, `Backup: backups/${LAST_RESET.backup.id} (${LAST_RESET.backup.files} file(s))`)
+                : null,
+              LAST_RESET.configRestartNeeded
+                ? el("div", { className: "hint", style: "color:var(--warn)" }, "Restart the bot to pick up the remaining changes.")
+                : null),
+            el("button", { className: "btn btn-sm btn-ghost", onclick: () => { LAST_RESET = null; render(); } }, "Dismiss")))
+      : null,
+
+    el("div", { className: "tiles" },
+      stat("Memory files", String(t.memoryFiles ?? 0), `${t.memoryFacts ?? 0} fact(s)`),
+      stat("Affect records", String(t.affinityFiles ?? 0),
+        STATE.affinity.crush ? `&#9733; ${STATE.affinity.crush.name}` : "no crush"),
+      stat("Buffered channels", String(t.bufferedChannels ?? 0), `${t.bufferedMessages ?? 0} msg(s)`),
+      stat("Skill files", String(t.skills ?? 0), "authored")),
+
+    panel("Reset data", "applies to every server - memory is per person, not per server",
+      el("p", { className: "hint" },
+        el("b", {}, "learned"), " is data she picked up from conversations. ",
+        el("b", {}, "authored"), " is content you or I wrote. ",
+        el("b", {}, "opt-in"), " items are never swept by the bulk button - tick them on purpose."),
+      el("div", { className: "row", style: "margin:12px 0 4px" }, learnedBtn),
+      el("div", { className: "target-list" }, ...boxes.map(b => b.row)),
+      el("div", { className: "row", style: "margin-top:14px" },
+        el("button", { className: "btn", onclick: doPreview }, "Preview"),
+        confirmIn,
+        goBtn),
+      planBox),
+
+    panel("Backups", null, backupBox)
+  );
+}
+
+function res_deleted_text(res) {
+  return (res.deleted || []).join("\n") || "nothing to delete";
+}
+
+// --- logs -------------------------------------------------------------------------------
+function logs(v) {
+  const box = el("div", { className: "log-box" });
+  const paint = () => {
+    box.replaceChildren(
+      ...STATE.logs.map(l => {
+        const time = new Date(l.ts).toLocaleTimeString();
+        return el("div", { className: "log-row" },
+          el("span", { className: "log-t" }, time),
+          el("span", { className: `log-l ${l.level}` }, l.level),
+          el("span", { className: "log-m" }, l.text));
+      })
+    );
+    if (!STATE.logs.length) box.textContent = "no log lines buffered yet";
+  };
+
+  const refresh = async () => {
+    try { STATE = await api("/"); paint(); } catch (e) { toast(e.message, true); }
+  };
+
+  add(v,
+    head("Logs", "Recent log lines from the running bot. Last 300 lines, kept in memory."),
+    panel("Recent log lines", `${STATE.logs.length} buffered`,
+      el("div", { className: "row spread", style: "margin-bottom:12px" },
+        el("span", { className: "hint" }, "Newest last, scrolled to the end as they arrive."),
+        el("button", { className: "btn btn-sm", onclick: refresh }, "Refresh")),
+      box)
+  );
+  paint();
+}
+
+// --- affect editor -----------------------------------------------------------------
+// Two kinds of number live on a person. Warmth, familiarity and romance are the
+// slow ones - they take weeks and are decided by how you treat her. Feelings are
+// the fast ones: they move a few points per message and fade on their own over
+// the next hour or two. Both are editable here, and both are written straight
+// back to affinity/<slug>.json, so anything set by hand behaves exactly like a
+// turn that landed well.
+
+// A number that saves itself when you let go of it. The label follows the drag;
+// the write only happens on `change`, so one drag is one write.
+function knob(label, { value, min, max, step = 1, onCommit, format = v => v, cls = "" }) {
+  const out = el("span", { className: "num" }, format(value));
+  const input = el("input", { type: "range", class: `slider ${cls}`.trim(), min, max, step, value });
+  input.setAttribute("aria-label", label);
+
+  const paint = () => {
+    const raw = Number(input.value);
+    const pct = ((raw - min) / (max - min)) * 100;
+    // The filled part of the track is a CSS gradient, so the fill has to live
+    // on the element itself - there is no pseudo-element to hang it off.
+    input.setAttribute("style", `--fill:${clamp(pct, 0, 100).toFixed(2)}%`);
+    out.textContent = format(raw);
+    input.setAttribute("aria-valuetext", out.textContent);
+  };
+
+  paint();
+  input.oninput = paint;
+  input.onchange = async () => {
+    const next = Number(input.value);
+    input.disabled = true;
+    try {
+      await onCommit(next);
+      out.textContent = format(next);
+    } catch (e) {
+      toast(e.message, true);
+      input.value = value;   // put it back rather than lie about the number
+      out.textContent = format(value);
+      paint();
+    } finally {
+      input.disabled = false;
+    }
+  };
+  return el("div", { className: "knob" }, el("label", {}, label), input, out);
+}
+
+function balanceBar(value) {
+  const pct = Math.min(50, Math.abs(value) / 2);
+  const cls = value >= 15 ? "" : value <= -15 ? " low" : " mid";
+  return el("div", { className: `balance${cls}`, title: `Overall ${value}`, "aria-label": `Overall balance ${value}` },
+    el("i", { style: value >= 0 ? `left:50%;width:${pct}%` : `left:${50 - pct}%;width:${pct}%` }));
+}
+
+function whyRows(history) {
+  if (!history || !history.length) {
+    return [el("div", { className: "why-row" },
+      el("span", { className: "deltas" }, "”"),
+      el("span", { className: "what" }, "Nothing recorded yet."))];
+  }
+  return history.slice().reverse().map(h => {
+    const bits = ["warmth", "familiarity", "romance"]
+      .filter(k => Math.abs(h[k] || 0) >= 0.05)
+      .map(k => `${k.slice(0, 4)} ${h[k] > 0 ? "+" : ""}${h[k]}`);
+    const when = h.ts ? String(h.ts).slice(5, 16).replace("T", " ") : "";
+    return el("div", { className: "why-row" },
+      el("span", { className: `deltas ${bits.some(b => b.includes("-")) ? "down" : "up"}` },
+        bits.join("  ") || "no change"),
+      el("span", { className: "what" }, when ? `${when} ” ${h.why || "no clear signal"}` : (h.why || "no clear signal")));
+  });
+}
+
+function feelingsGrid(person, a) {
+  if (!a.feelingsOn) {
+    return el("p", { className: "hint mb-0" }, "Feelings are switched off in config.json.");
+  }
+  return el("div", { className: "feelings-grid" },
+    a.feelingNames.map(name => knob(name, {
+      value: person.feelings?.[name] ?? 0,
+      min: 0, max: 100, step: 1,
+      format: v => Math.round(v),
+      // A feeling high enough to colour her voice reads warm, a low one cold,
+      // and anything in between stays neutral so eight sliders do not become
+      // eight colours.
+      cls: (person.feelings?.[name] ?? 0) >= 55 ? "hot" : (person.feelings?.[name] ?? 0) <= 15 ? "cold" : "",
+      onCommit: async v => {
+        await post("/affinity/feelings", { slug: person.slug, feelings: { [name]: v } });
+        person.feelings = { ...person.feelings, [name]: v };
+      },
+    })));
+}
+
+function personCard(person, a) {
+  const isCrush = a.crush?.slug === person.slug;
+
+  const pronouns = el("input", {
+    className: "pronouns-in",
+    value: person.pronouns || "",
+    placeholder: "unknown",
+    "aria-label": `pronouns for ${person.name}`,
+    onchange: async e => {
+      const box = e.target;
+      box.disabled = true;
+      try {
+        await post("/affinity/pronouns", { slug: person.slug, pronouns: box.value });
+        person.pronouns = box.value;
+        saved("Pronouns saved");
+      } catch (err) {
+        toast(err.message, true);
+      } finally {
+        box.disabled = false;
+      }
+    },
+  });
+
+  const optBtn = el("button", { className: "btn btn-sm btn-ghost" }, person.crushEnabled ? "opted in" : "opted out");
+  optBtn.title = person.crushEnabled
+    ? "She can fall for them. Click to rule them out."
+    : "Ruled out of the crush. Click to let her fall for them.";
+  optBtn.onclick = async () => {
+    optBtn.disabled = true;
+    try {
+      await post("/affinity/toggle", { slug: person.slug });
+      await reload();
+      render();
+    } catch (e) { toast(e.message, true); optBtn.disabled = false; }
+  };
+
+  const crushBtn = el("button", {
+    className: `btn btn-sm ${isCrush ? "" : "btn-ghost"}`,
+    // Picking a crush needs a pronoun she can fall for; the opt-out is softer
+    // and the backend clears it when the host picks someone on purpose.
+    disabled: !isCrush && !person.eligible,
+  }, isCrush ? "Release the crush" : "Make her crush");
+  crushBtn.title = isCrush
+    ? "Take the crush away from everyone."
+    : !person.eligible
+      ? `She only falls for ${a.eligible.join(" or ")}. Set their pronouns first.`
+      : person.crushEnabled
+        ? `She falls for ${person.name}.`
+        : `This also opts ${person.name} back in.`;
+  crushBtn.onclick = async () => {
+    crushBtn.disabled = true;
+    try {
+      await post("/affinity/crush", { slug: isCrush ? "" : person.slug });
+      await reload();
+      render();
+      saved(isCrush ? `${person.name} is not the crush any more` : `${person.name} has the crush`);
+    } catch (e) { toast(e.message, true); crushBtn.disabled = false; }
+  };
+
+  const resetBtn = el("button", { className: "btn btn-sm btn-danger" }, "Reset");
+  resetBtn.title = "Zero this person's warmth, familiarity and romance, and clear the history.";
+  resetBtn.onclick = async () => {
+    if (!confirm(`Reset ${person.name}'s affect back to zero?`)) return;
+    resetBtn.disabled = true;
+    try {
+      await post("/affinity/reset", { slug: person.slug });
+      await reload();
+      render();
+      saved(`${person.name} reset`);
+    } catch (e) { toast(e.message, true); resetBtn.disabled = false; }
+  };
+
+  const streak = person.streak > 0
+    ? chip(`${person.streak} good in a row`, "ok")
+    : person.streak < 0
+      ? chip(`${-person.streak} poor in a row`, "bad")
+      : chip("neutral streak");
+
+  const warmthTone = person.warmth > 0 ? "pos" : person.warmth < 0 ? "neg" : "";
+  const romanceTone = person.romance > 0 ? "hot" : "";
+
+  return el("div", { className: `affect-card${isCrush ? " crush" : ""}`, "data-toc": "" },
+    el("div", { className: "person-top" },
+      el("div", { className: "disc" }, (person.name || "?").trim().charAt(0).toUpperCase()),
+      el("div", { className: "who" },
+        el("b", {}, person.name),
+        el("div", { className: "hint" },
+          `${person.interactions} turn${person.interactions === 1 ? "" : "s"}`,
+          !a.crushOn ? "" : isCrush ? " · the crush" : person.crushEnabled ? "" : " · ruled out of the crush")),
+      el("div", { className: "person-actions" },
+        pronouns,
+        a.crushOn ? optBtn : null,
+        a.crushOn ? crushBtn : null,
+        resetBtn)),
+
+    el("div", { className: "mood-strip" },
+      el("span", {}, `Right now: ${person.moodLabel}`),
+      balanceBar(person.balance),
+      el("span", { className: "mono hint" }, `balance ${person.balance}`),
+      streak),
+
+    el("div", { className: "knobs" },
+      knob("warmth", {
+        value: person.warmth, min: -100, max: 100, step: 1, cls: warmthTone,
+        onCommit: async v => {
+          const res = await post("/affinity/adjust", { slug: person.slug, warmth: v });
+          Object.assign(STATE, { people: res.people, affinity: { ...a, crush: res.crush } });
+          person.warmth = v;
+        },
+      }),
+      knob("knows", {
+        value: person.familiarity, min: 0, max: 100, step: 1,
+        onCommit: async v => {
+          const res = await post("/affinity/adjust", { slug: person.slug, familiarity: v });
+          Object.assign(STATE, { people: res.people, affinity: { ...a, crush: res.crush } });
+          person.familiarity = v;
+        },
+      }),
+      knob("romance", {
+        value: person.romance, min: 0, max: 100, step: 1, cls: romanceTone,
+        onCommit: async v => {
+          const res = await post("/affinity/adjust", { slug: person.slug, romance: v });
+          Object.assign(STATE, { people: res.people, affinity: { ...a, crush: res.crush } });
+          person.romance = v;
+        },
+      })),
+
+    el("details", { className: "more" },
+      el("summary", {}, "How she feels right now"),
+      el("p", { className: "hint mb-0" },
+        `These move a few points per message and fade on their own ” roughly halving every `,
+        `${a.feelingHalfLife} minutes. Only two or three of them ever reach her.`),
+      feelingsGrid(person, a)),
+
+    el("details", { className: "more" },
+      el("summary", {}, "Why the numbers moved"),
+      el("div", { className: "why-list" }, ...whyRows(person.history)))
+  );
+}
+
+function bondPanel(a) {
+  const b = a.bond;
+
+  const title = el("h2", {}, "The bond with you");
+
+  if (!a.bondOn) {
+    return el("section", { className: "bond-panel", "data-toc": "" },
+      title,
+      el("p", { className: "hint mb-0" },
+        "The bond is switched off, or there is no owner id set. It needs ",
+        el("code", {}, "private.ownerIds"), " or ", el("code", {}, "bond.ownerIds"),
+        " in config.json, and then a conversation with you in it."));
+  }
+
+  if (!b) {
+    return el("section", { className: "bond-panel", "data-toc": "" },
+      title,
+      el("p", { className: "hint mb-0" },
+        "She has not talked to you in a conversation she could score yet. Once she has, ",
+        "you can nudge it by hand here."));
+  }
+
+  const status = b.caring
+    ? el("div", { className: "notice", style: "margin:0 0 4px" }, el("span", { className: "dot" }),
+        el("div", {}, el("b", {}, "Being careful with him right now. "),
+          b.reason ? `${b.reason}. ` : "",
+          b.minutesLeft > 0
+            ? `About ${b.minutesLeft} minute${b.minutesLeft === 1 ? "" : "s"} left on this window.`
+            : "The window has run out."))
+    : el("p", { className: "hint", style: "margin:0" },
+        `Sounds ${b.moodWord} (${b.mood}). She asks once when it drops past ${b.lowThreshold}, then leaves it alone.`);
+
+  const caring = el("button", { className: "btn btn-sm btn-ghost" }, b.caring ? "End the caring window" : "Start caring now");
+  caring.title = "Manual override. The window closes on its own after "
+    + `${a.bondThresholds.minutes} minutes either way.`;
+  caring.onclick = async () => {
+    caring.disabled = true;
+    try {
+      await post("/affinity/bond", { slug: b.slug, caring: !b.caring });
+      await reload();
+      render();
+    } catch (e) { toast(e.message, true); caring.disabled = false; }
+  };
+
+  const clear = el("button", { className: "btn btn-sm btn-ghost" }, "Allow her to ask again");
+  clear.title = "Clears the cooldown, so she can check in on you straight away if you sound bad.";
+  clear.onclick = async () => {
+    clear.disabled = true;
+    try {
+      await post("/affinity/bond", { slug: b.slug, checkInClear: true });
+      await reload();
+      render();
+      saved("Cooldown cleared");
+    } catch (e) { toast(e.message, true); clear.disabled = false; }
+  };
+
+  return el("section", { className: `bond-panel${b.caring ? " caring" : ""}`, "data-toc": "" },
+    el("div", { className: "person-top" },
+      title,
+      el("div", { className: "person-actions" },
+        chip(b.slug, "code"),
+        chip(`${b.checkIns} check-in${b.checkIns === 1 ? "" : "s"}`),
+        caring, clear)),
+    status,
+    el("div", { className: "knobs" },
+      knob("closeness", {
+        value: b.close, min: 0, max: 100, step: 1, cls: "pos",
+        onCommit: async v => {
+          await post("/affinity/bond", { slug: b.slug, level: v });
+          b.close = v;
+        },
+      }),
+      knob("his mood", {
+        value: b.mood, min: -100, max: 100, step: 1, cls: b.mood < -20 ? "neg" : b.mood > 20 ? "hot" : "",
+        onCommit: async v => {
+          await post("/affinity/bond", { slug: b.slug, mood: v });
+          b.mood = v;
+        },
+      })),
+    el("p", { className: "hint", style: "margin:12px 0 0" },
+      "Closeness grows a little every time you talk to her, faster when you actually check in. ",
+      "Mood is her own smoothed read on how you sound ” it moves on its own, this is only for nudging it.")
+  );
+}
+
+// The master crush switch. Off hides every crush control on the page and stops
+// the bot carrying the behaviour; the scores and feelings keep moving.
+function crushSwitch(a) {
+  const on = !!a.crushOn;
+  const sw = el("button", { className: `toggle${on ? " on" : ""}` }, el("i", {}));
+  sw.type = "button";
+  sw.setAttribute("style", "margin-left:auto");
+  sw.setAttribute("role", "switch");
+  sw.setAttribute("aria-checked", String(on));
+  sw.setAttribute("aria-label", "the crush feature");
+  sw.title = on ? "Turn the crush off" : "Turn the crush on";
+  sw.onclick = async () => {
+    sw.disabled = true;
+    try {
+      await post("/affinity/crush-enabled", { enabled: !on });
+      await reload();
+      render();
+      saved(!on ? "Crush is on" : "Crush is off");
+    } catch (e) { toast(e.message, true); sw.disabled = false; }
+  };
+
+  return panel(null, null,
+    el("div", { className: "person-top" },
+      el("div", {},
+        el("h2", {}, "Crush"),
+        el("p", { className: "hint mb-0" },
+          on ? "She can fall for one person, chosen below."
+             : "Off. Nobody is the crush, and nothing here shows it.")),
+      sw));
+}
+
+function affinity(v) {
+  const a = STATE.affinity;
+  const people = a.people || [];
+  const crush = a.crush;
+
+  add(v,
+    head("Affect", "How she feels about everyone, and how she feels right now. ",
+      a.crushOn
+        ? "One crush at a time, always. She never says any of this out loud, and she does not know it as numbers."
+        : "The crush is switched off. The scores and feelings still move; nobody is picked."),
+
+    !a.enabled
+      ? notice(el("b", {}, "Affect is disabled in config.json"), " ” nothing here is being tracked.")
+      : null,
+
+    crushSwitch(a),
+
+    el("div", { className: "tiles" },
+      ...(a.crushOn ? [stat("Crush", crush ? crush.name : "nobody",
+        crush ? crush.pronouns || "pronouns unknown" : "not elected yet")] : []),
+      stat("People", String(people.length),
+        a.crushOn ? `${people.filter(p => p.isCrush).length} elected` : "affect records"),
+      stat("Closest", people.length ? people[0].name : "”",
+        people.length ? `warmth ${people[0].warmth}` : "no records"),
+      stat("Feelings", a.feelingsOn ? "on" : "off",
+        a.feelingsOn ? `fade over ~${a.feelingHalfLife} min` : "set affinity.feelings")),
+
+    people.length === 0
+      ? empty("Nobody yet", "Records appear here as people talk to her. Until then there is nothing to edit.")
+      : panel("How she feels about everyone", `${people.length} record${people.length === 1 ? "" : "s"}`,
+          el("p", { className: "hint" },
+            "Warmth moves when you treat her well and drops when you do not. ",
+            "A run of good messages builds faster than one bad message costs, and the gap narrows as she ",
+            "gets close ” she does not swing wildly at someone she likes."),
+          el("div", { style: "margin-top:16px" }, ...people.map(p => personCard(p, a))),
+          a.crushOn
+            ? el("p", { className: "hint", style: "margin:14px 0 0" },
+                "She can only fall for ", el("code", {}, a.eligible.join(" / ")),
+                ", so anyone without pronouns recorded can never be elected. ",
+                "Set one above, or with ", el("code", {}, "!pronouns he/him"), ".")
+            : null),
+
+    bondPanel(a)
+  );
+}
+
+// --- init ---------------------------------------------------------------------------
+api("/").then(s => {
+  STATE = s;
+  VIEW = currentViewFromHash();
+  enter();
+}).catch(e => {
+  // Nothing to unlock, so a failure here means the panel is not being served.
+  $("#boot").replaceChildren(
+    el("b", {}, "Could not reach the panel"),
+    el("p", { className: "hint mb-0" }, e.message),
+  );
+});
+</script>
+</body>
+</html>
