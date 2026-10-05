@@ -29,6 +29,9 @@ backups/
 usage/*.jsonl
 !usage/.gitkeep
 
+# Per-person quiet list. Created by the bot on first use.
+muted.json
+
 # Scratch: half-written files and bot logs.
 tmp/
 
