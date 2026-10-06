@@ -1,5 +1,3 @@
-"""Environment + config.json loading, directory setup, and the legacy-folder migration."""
-
 from __future__ import annotations
 
 import json
@@ -20,8 +18,7 @@ AFFINITY_DIR = ROOT / "affinity"
 PRIVATE_DIR = ROOT / "private"
 BACKUP_DIR = ROOT / "backups"
 # Derived data we keep rather than rebuild, plus scratch that is never real data.
-# Half-written files stage in TMP_DIR so nothing torn is ever left beside a
-# config, a memory file or the quiet list.
+# Half-written files stage in TMP_DIR, so nothing torn sits beside real data.
 CACHE_DIR = ROOT / "cache"
 TMP_DIR = ROOT / "tmp"
 # One append-only file per day of model calls, read back by the dashboard.
@@ -34,13 +31,10 @@ DEFAULTS: dict = {
         "name": "Yuyu",
         "prefix": "!",
         "personaFile": "persona.md",
-        # Rich presence: what Discord shows on her profile. `type` picks the
-        # verb, `name` is the headline, details/state are the two lines under it.
-        # Image fields are asset keys uploaded in the Developer Portal, not URLs.
-        #
-        # Placeholders: {prefix}, {name}, {people} counted off disk, and
-        # {servers} / {activity} supplied by the running bot - so the text
-        # follows what she is doing instead of standing still.
+        # Rich presence: `type` picks the verb, `name` the headline, details/state
+        # the two lines under it. Image fields are Developer Portal asset keys, not
+        # URLs. {prefix}/{name}/{people} count off disk; {servers}/{activity} come
+        # from the running bot, so the text follows what she is doing.
         "presence": {
             "status": "online",
             "type": "watching",
@@ -260,35 +254,31 @@ DEFAULTS: dict = {
     "affinity": {
         "enabled": True,
         "eligiblePronouns": ["he/him", "xe/xim"],
-        # Master switch for the whole crush feature. Off means nobody is the
-        # crush, the panel hides every crush control, and she never acts on it -
-        # but warmth, familiarity, romance and the feelings all keep moving.
+        # Master switch for the crush. Off: nobody is the crush, the panel hides
+        # every control, she never acts on it. Warmth and romance keep moving.
         "crush": True,
         "crushBehaviours": True,
-        # Who she has a crush on is the host's choice: by default only an
-        # explicit pick in the panel gives her a crush, and it stays on that
-        # person until it is released or reset. Set this true and she elects one
-        # herself from whoever leans hardest - the switch margin below only
-        # matters then. Romance and the feelings still build on their own either
-        # way; this only decides who, if anyone, gets the crush.
+        # Who she has a crush on is the host's choice. False: only an explicit
+        # panel pick gives her a crush, and it stays until released or reset.
+        # True: she elects whoever leans hardest, and the switch margin matters.
+        # Romance and feelings build either way; this decides who gets the crush.
         "crushAutoElect": False,
         "romanceThreshold": 40,
-        # How far ahead of the holder somebody has to be to take the spot.
-        # Without it, two people a point apart swap the crush every time either
-        # of them says hello.
+        # How far ahead of the holder somebody must be to take the spot. Without
+        # it, two people a point apart swap the crush whenever either says hello.
         "crushSwitchMargin": 20,
         "romanceFloor": 25,
         "decayWarmthPerDay": 1.5,
         "decayFamiliarityPerDay": 0.35,
         "decayRomancePerDay": 0.7,
         "injectPrompt": True,
-        # Being let down lands harder than being treated well, and forgiving
-        # someone takes a few turns rather than one.
+        # Being let down lands harder than being treated well; forgiving someone
+        # takes a few turns.
         "warmthRecoverScale": 0.85,
         "warmthLossScale": 1.25,
         "streakBonus": 0.3,
         "badStreakBonus": 0.45,
-        # How she feels in the moment, as opposed to the long numbers above.
+        # How she feels in the moment, against the long numbers above.
         "feelings": True,
         "feelingHalfLifeMinutes": 120,
     },
@@ -296,13 +286,13 @@ DEFAULTS: dict = {
     "bond": {
         "enabled": True,
         "ownerIds": [],
-        # A single message reading this low is enough to make her ask. One bad
-        # afternoon is not a crisis, but this is a crisis.
+        # One message this low is enough to make her ask. One bad afternoon is not
+        # a crisis; this is.
         "lowThreshold": -35,
-        # Consecutive messages below the line needed before she asks. Raise it to
-        # make her slower to worry - 1 is the whole point of the feature.
+        # Consecutive messages below the line needed before she asks. 1 is the
+        # whole point of the feature.
         "lowTurnsNeeded": 1,
-        # ...and a mood this good for a couple of turns ends her window early.
+        # ...and a mood this good for two turns ends the window early.
         "betterThreshold": 10,
         "graceTurns": 2,
         # Hard stop on how long she stays gentle. Short on purpose.
@@ -312,8 +302,8 @@ DEFAULTS: dict = {
         "checkInCooldownMinutes": 90,
     },
     "emoji": {
-        # Off: a bare emoji reaction on someone's message reads as a bot tell.
-        # Sticker *images* stay on - those are the attachments she uses instead.
+        # Off: a bare emoji reaction reads as a bot tell. Sticker *images* stay on -
+        # they are the attachments she uses instead.
         "reactions": False,
         "reactionChance": 0.30,
         "stickers": True,
@@ -323,18 +313,16 @@ DEFAULTS: dict = {
     },
     "dashboard": {
         "enabled": True,
-        # Loopback only. The panel can rewrite her persona, skills and memory, so
-        # it refuses to start on anything a browser on the network could reach.
+        # Loopback only: the panel can rewrite her persona, skills and memory, so it
+        # refuses to start on anything a browser could reach.
         "host": "127.0.0.1",
         "port": 7373,
         "openBrowser": True,
     },
     "setup": {
-        # Whether the panel has stopped opening the setup wizard by itself.
-        # Written on dismiss so it persists per install - not per browser, which
-        # would bring the wizard back on a new machine. Ships false, so a fresh
-        # clone still offers it once. The wizard is always reachable from the
-        # Overview tab regardless.
+        # Whether the panel has stopped opening the wizard by itself. Written on
+        # dismiss, so it persists per install, not per browser. Ships false. The
+        # wizard is always reachable from the Overview tab.
         "wizardDismissed": False,
     },
     "limits": {
@@ -343,18 +331,17 @@ DEFAULTS: dict = {
         "maxConcurrentGenerations": 2,
     },
     "usage": {
-        # Token counting is on by default: it costs one dict per call and never
-        # leaves the machine. Cost is only worked out for the models priced
-        # below, because a made-up price is worse than no price.
+        # Token counting is on by default: one dict per call, never leaves the
+        # machine. Cost is only worked out for priced models; a made-up price is
+        # worse than no price.
         "enabled": True,
         "keepDays": 90,
-        # Ask streaming responses to include their usage block. Some
-        # OpenAI-compatible gateways reject the field, so a provider that does
-        # is remembered and retried without it.
+        # Ask streams for their usage block. Gateways that reject the field are
+        # remembered and retried without it.
         "streamUsage": True,
         # Dollars per million tokens, as {"<provider>:<model>": {"in": ..,
-        # "out": ..}}. "cached" is optional and defaults to the input rate. A
-        # bare model name or "*" matches anything not listed more specifically.
+        # "out": ..}}. "cached" is optional and defaults to the input rate; a bare
+        # name or "*" matches anything unlisted.
         "prices": {},
     },
 }
@@ -398,14 +385,6 @@ STICKERS_FILE = ROOT / config["emoji"]["stickersFile"]
 
 
 def bot_name() -> str:
-    """Her name, read live.
-
-    Not a module constant: the setup wizard renames her while the bot is already
-    running, and every module that did `from .config import BOT_NAME` captured
-    the old string at import time - so the panel would have shown the new name
-    while she still answered to the old one. Reading it through this function is
-    what keeps those two honest.
-    """
     return str(config["bot"].get("name") or "Yuyu").strip() or "Yuyu"
 
 
@@ -416,35 +395,25 @@ def set_bot_name(value: str) -> str:
         raise ValueError("a name is required")
     if len(name) > 32:
         raise ValueError("that name is too long (max 32 characters)")
-    # She is addressed by name in every channel she is in, so the name has to
-    # survive being typed into a message and a regex.
+    # She is addressed by name in every channel, so it must survive a message
+    # and a regex.
     if not all(c.isalnum() or c in " _-." for c in name):
         raise ValueError("letters, numbers, spaces, - _ and . only")
     config["bot"]["name"] = name
     _patch_config("bot", "name", name)
     # The default persona is written from the name and is only a starting point,
-    # but an untouched one still says the old name in its heading.
+    # but an untouched one still says the old name.
     return name
 
 
 class _Placeholders(dict):
-    """An unknown placeholder resolves to nothing.
-
-    Printing `{people}` at whoever is looking at her profile would be worse
-    than quietly dropping it, and someone's hand-edited config is allowed to
-    have a stray brace in it.
-    """
 
     def __missing__(self, key):
         return ""
 
 
 def _people_phrase() -> str:
-    """`42 people`, or nothing at all before she has met anybody.
 
-    Counted here so `build_presence()` still works with no arguments - the
-    dashboard preview and the tests both call it that way.
-    """
     try:
         count = sum(1 for _ in MEMORY_DIR.glob("*.md"))
     except OSError:
@@ -453,22 +422,11 @@ def _people_phrase() -> str:
 
 
 def _tidy(text: str) -> str:
-    """Drop the fragments a missing placeholder left behind.
-
-    `{people} · {activity}` with nobody known yet must read as an empty string,
-    not as a stranded `·`.
-    """
     return " · ".join(part.strip() for part in text.split(" · ") if part.strip())
 
 
 def build_presence(live: dict | None = None) -> dict:
-    """Turn the presence config into what change_presence() expects.
 
-    `{prefix}` and `{name}` are always known, `{people}` is counted off disk,
-    and `{servers}` / `{activity}` arrive in `live` because only the bot knows
-    them. Placeholders carry their own noun - `42 people`, not `42` - so a
-    missing one tidies the line instead of stranding a word on it.
-    """
     p = dict(config["bot"].get("presence") or {})
     fmt = _Placeholders(prefix=PREFIX, name=bot_name(), people=_people_phrase())
     for key, value in (live or {}).items():
@@ -481,7 +439,7 @@ def build_presence(live: dict | None = None) -> dict:
         try:
             return _tidy(text.format_map(fmt))
         except (ValueError, IndexError):
-            # A stray brace, not a placeholder. Show it back untouched.
+            # A stray brace, not a placeholder: show it back untouched.
             return text
 
     return {
@@ -498,17 +456,7 @@ def build_presence(live: dict | None = None) -> dict:
 
 
 def current_model() -> str:
-    """The configured primary PROVIDER id - not a model name.
-
-    Named for what the dashboard calls it, not what it returns. The model name
-    lives in that provider's own entry, so anything that needs to tell someone
-    which model is running must read `model` off the provider rather than
-    reporting this string: answering "Gemini" to "what model are you on" is the
-    bug that name invites.
-
-    Kept as-is because it is the selector for the fallback chain, where a
-    provider id is exactly what is wanted.
-    """
+ 
     providers = config["model"].get("providers") or []
     default = str(config["model"].get("default") or "")
     if default:
@@ -517,11 +465,6 @@ def current_model() -> str:
 
 
 def _patch_config(section: str, key: str, value) -> None:
-    """Change ONE key in config.json, in place.
-
-    Re-reads and rewrites the file rather than dumping the in-memory `config`,
-    so unknown keys and anything hand-edited survive a save from the panel.
-    """
     path = ROOT / "config.json"
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -536,13 +479,7 @@ def _patch_config(section: str, key: str, value) -> None:
 
 
 def set_presence(value: dict) -> dict:
-    """Change her rich presence, live and on disk.
 
-    Both halves matter: `_patch_config` only rewrites the file while
-    `build_presence()` reads the in-memory dict, so patching alone would need a
-    restart. Anything Discord would reject is refused here so the panel can say
-    so rather than appear to work.
-    """
     status = str(value.get("status") or "online").strip().lower()
     kind = str(value.get("type") or "watching").strip().lower()
     if status not in ("online", "idle", "dnd", "invisible"):
@@ -550,8 +487,8 @@ def set_presence(value: dict) -> dict:
     if kind not in ("playing", "watching", "listening", "competing", "custom"):
         raise ValueError(f"unknown activity type: {kind}")
 
-    # Discord truncates around here anyway; refusing to store more is friendlier
-    # than saving text she will never show anyone.
+    # Discord truncates around here; refusing to store more beats saving text she
+    # will never show.
     def line(raw, limit=128) -> str:
         text = str(raw or "")
         if len(text) > limit:
@@ -575,7 +512,6 @@ def set_presence(value: dict) -> dict:
 
 
 def set_model(model_id: str) -> str:
-    """Switch the chat model for every future reply, now and after a restart."""
     name = str(model_id).strip()
     if not name:
         raise ValueError("empty model name")
@@ -585,11 +521,7 @@ def set_model(model_id: str) -> str:
 
 
 def set_crush_enabled(enabled: bool) -> bool:
-    """Turn the whole crush feature on or off, live and on disk.
 
-    Off does not erase anyone's scores - it just stops there being a crush. The
-    panel hides its crush controls and the bot stops carrying the behaviour.
-    """
     value = bool(enabled)
     config["affinity"]["crush"] = value
     _patch_config("affinity", "crush", value)
@@ -611,10 +543,10 @@ def set_provider_model(provider_id: str, model_name: str) -> str:
     return name
 
 
-# --- providers, as the dashboard sees them ---------------------------------
+# providers, as the dashboard sees them
 #
-# A provider names the environment variable its key lives in. The variable's
-# *name* is configuration and may be shown; its *value* never leaves .env.
+# A provider names the env var its key lives in. The variable's *name* may be
+# shown; its *value* never leaves .env.
 
 PROVIDER_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,39}\Z")
 ENV_NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
@@ -622,12 +554,7 @@ MODEL_NAME_CHARS = set("-_./+:")
 
 
 def provider_env_names(provider: dict) -> list[str]:
-    """Every environment variable this provider reads a key from, in order.
 
-    One key can be named directly (`apiKeyEnv`), and a whole numbered family
-    (`apiKeyEnvPrefix` -> `PREFIX_1`, `PREFIX_2`) can sit behind it so a single
-    provider holds several keys and rotates between them.
-    """
     configured = provider.get("apiKeyEnvs") or provider.get("apiKeyEnv") or []
     if isinstance(configured, str):
         configured = [configured]
@@ -656,11 +583,7 @@ def provider_key_names(provider: dict) -> list[str]:
 
 
 def public_provider(provider: dict) -> dict:
-    """What the dashboard may be told about one provider.
 
-    The key *values* are never here - only the variable names and whether each
-    one currently holds something, which is all the editor needs to draw.
-    """
     names = provider_key_names(provider)
     return {
         "id": str(provider.get("id") or ""),
@@ -677,12 +600,6 @@ def public_provider(provider: dict) -> dict:
 
 
 def upsert_provider(payload: dict) -> dict:
-    """Add or update one provider entry, in memory and in config.json.
-
-    Only the fields the panel draws are touched; anything hand-set on the entry
-    (a comment, a custom header, a second key list) survives an edit. The key
-    value is deliberately absent from `payload` - it goes to .env instead.
-    """
     provider_id = str(payload.get("id") or "").strip()
     if not PROVIDER_ID_RE.match(provider_id):
         raise ValueError("provider id must be letters, numbers, - or _ (max 40)")
@@ -745,12 +662,6 @@ def upsert_provider(payload: dict) -> dict:
 
 
 def remove_provider(provider_id: str) -> bool:
-    """Drop one provider. Refuses to remove the last one.
-
-    Removing the primary moves the primary to the first provider still enabled,
-    because a `default` pointing at a provider that is gone would leave her
-    with nothing to talk to.
-    """
     provider_id = str(provider_id or "").strip()
     providers = [dict(item) for item in config["model"].get("providers") or []]
     remaining = [item for item in providers if str(item.get("id") or "") != provider_id]
@@ -767,12 +678,6 @@ def remove_provider(provider_id: str) -> bool:
 
 
 def set_env_secret(name: str, value: str) -> str:
-    """Write an API key into .env and into this process, with no restart.
-
-    The key lives in .env rather than config.json so a config export never
-    carries the secret with it. Existing lines and comments are kept; only the
-    one variable is replaced.
-    """
     name = str(name or "").strip()
     if not ENV_NAME_RE.match(name):
         raise ValueError("the API key variable must be a plain ENV_NAME")
@@ -809,10 +714,6 @@ def set_env_secret(name: str, value: str) -> str:
 
 
 def validate_bot_token(token: str | None) -> tuple[bool, str]:
-    """A bot token is `<userId>.<timestamp>.<hmac>` - always two dots.
-
-    The OAuth2 client secret has none, which is the usual mix-up.
-    """
     if not token:
         return False, (
             "DISCORD_TOKEN is empty. Developer Portal -> your app -> Bot -> Reset Token, "
@@ -843,11 +744,6 @@ def ensure_dirs() -> None:
 
 
 def migrate_legacy_dirs() -> tuple[list[str], list[str]]:
-    """Move anything left in the old people/ folder into memory/.
-
-    Idempotent, and it never overwrites: if both exist for the same slug the
-    memory/ copy wins and the old one is kept aside, so nothing is ever lost.
-    """
     legacy = ROOT / "people"
     if not legacy.exists():
         return [], []

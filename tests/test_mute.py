@@ -1,11 +1,3 @@
-"""The per-person quiet switch: storage, persistence, and the reply gate.
-
-    python -m pytest tests/test_mute.py -q
-
-She still writes the conversation down and keeps their memory file - being
-quiet is not the same as forgetting - but no reply, no command and no reaction
-gets through while someone is switched off.
-"""
 
 from __future__ import annotations
 
@@ -40,7 +32,7 @@ def isolated(tmp_path, monkeypatch):
     mute.invalidate()
 
 
-# --- storage -----------------------------------------------------------------
+# storage
 
 def test_nobody_is_muted_by_default():
     assert mute.muted_slugs() == set()
@@ -75,8 +67,6 @@ def test_several_people_can_be_quiet_at_once():
 
 
 def test_slugs_are_normalised_so_the_switch_stuck_once():
-    """A slug stored as `Mewo ` must still match the one the message pipeline
-    derives from the Discord username."""
     mute.set_muted("  Mewo ", True)
     assert mute.is_muted("mewo") is True
     assert mute.is_muted("MEWO") is True
@@ -104,7 +94,7 @@ def test_an_empty_slug_is_refused():
     assert not mute.MUTED_FILE.exists(), "nothing to store means nothing stored"
 
 
-# --- the reply gate ----------------------------------------------------------
+# the reply gate
 
 def _drive(slug: str, muted: bool) -> list[str]:
     """Run one message through _handle_message and report what actually happened."""
@@ -209,7 +199,5 @@ def test_exhausted_provider_failover_gets_a_friendly_reply_without_traceback(mon
 
 
 def test_the_gate_survives_a_case_mismatch_with_the_real_slug():
-    """The dashboard lowercases what it sends; the pipeline slugifies the
-    Discord username. Both have to land on the same key."""
     mute.set_muted("Mewo", True)
     assert mute.is_muted(chat.slug_for(_user("mewo", "mewo", 5903))) is True

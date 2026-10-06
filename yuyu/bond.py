@@ -1,9 +1,4 @@
-"""The bond with whoever built her.
 
-An ordinary affection record, except for what she does when his messages read
-bad: she asks once whether something is going on, then stays gentler for a short
-window that closes on its own. Short on purpose - asking for three days is weird,
-not careful."""
 
 from __future__ import annotations
 
@@ -14,8 +9,8 @@ from datetime import datetime, timezone
 from .config import config
 from .util import clamp
 
-# How she reads a message. Rough on purpose - this is a mood, not a diagnosis,
-# and a whole model call per turn to get a better one would not be worth it.
+# How she reads a message. Rough on purpose: a mood, not a diagnosis, and not
+# worth a model call per turn.
 VERY_LOW = re.compile(
     r"\b(depressed|hopeless|worthless|hate myself|can't sleep|couldn't sleep|no reason to|"
     r"give up|giving up|pointless|nobody (cares|likes|texts)|nobody cares|all alone|"
@@ -90,7 +85,7 @@ def blank() -> dict:
         "reason": "",
         "checkIns": 0,
         "lastCheckIn": None,
-        # Stamped on the first turn so the bond can be found again by name.
+        # Stamped on the first turn so the bond is findable by name.
         "ownerSlug": "",
         "ownerId": "",
     }
@@ -133,12 +128,7 @@ def normalise(record: dict) -> dict:
 
 
 def mood_of(text: str) -> float:
-    """A rough read on how somebody sounds, -100 to +100.
 
-    Weighted rather than counted: "so tired" is not the same weight as a stray
-    "tired" in passing, and one very bad sentence should be able to sink the
-    whole reading on its own.
-    """
     body = str(text or "")
     if not body.strip():
         return 0.0
@@ -188,24 +178,21 @@ def step(record: dict, text: str, sig: dict, is_owner: bool = False, owner_id: s
         state["ownerId"] = str(owner_id)
 
     sample = mood_of(text)
-    # Smoothed, because one bad afternoon is not a crisis and one good reply is
-    # not a recovery. The smoothing is for *display* and for deciding he is
-    # better again - never for opening the window, see below.
+    # Smoothed: one bad afternoon is not a crisis, one good reply is not a
+    # recovery. For *display* and for reopening the window - never to open it.
     state["mood"] = round(clamp(state["mood"] * 0.65 + sample * 0.35, -100, 100), 1)
 
     low_bar = _setting("lowThreshold", -35)
     better_bar = _setting("betterThreshold", 10)
 
-    # Counted off what he just said, not off the smoothed number. At 0.35 a
-    # single "everything is pointless" only reaches -26, so a display-driven
-    # trigger would never fire on the message it was written for.
+    # Counted off what he just said, not the smoothed number: at 0.35 one
+    # "everything is pointless" only reaches -26.
     if sample <= low_bar:
         state["lowTurns"] += 1
     else:
         state["lowTurns"] = max(0, state["lowTurns"] - 1)
 
-    # He gets better at being around her whether or not today was good, and a
-    # genuinely awful run of messages pushes the other way.
+    # He gets better at being around her whether or not today was good.
     if sig.get("harsh") or sig.get("commanded"):
         state["level"] = clamp(state["level"] - 1.2, 0, 100)
     else:
@@ -230,7 +217,7 @@ def step(record: dict, text: str, sig: dict, is_owner: bool = False, owner_id: s
             started = True
             reason = state["reason"]
         else:
-            # Asked recently already. Count it without opening a second window.
+            # Asked recently. Count it without opening a second window.
             state["checkIns"] += 1
             state["lastCheckIn"] = _now()
 

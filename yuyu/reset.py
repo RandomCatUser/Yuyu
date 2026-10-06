@@ -1,8 +1,3 @@
-"""Data reset: preview, backup, run, restore.
-
-Learned data is swept by the bulk button; authored and opt-in data is never
-touched without saying so, and hand-written files need a typed confirmation. A
-backup is written before anything is deleted."""
 
 from __future__ import annotations
 
@@ -85,7 +80,7 @@ def _normalise(selected) -> list[str]:
     return list(dict.fromkeys(keys))
 
 
-# --- inventory -------------------------------------------------------------
+# inventory
 
 async def inventory() -> dict:
     people = list_people()
@@ -132,106 +127,6 @@ async def inventory() -> dict:
 
 
 async def preview(selected) -> dict:
-    """A dry run: exactly what would go, and what is being kept."""
-    keys = _normalise(selected)
-    inv = await inventory()
-    removed: list[dict] = []
-    kept: list[str] = []
-
-    for key in keys:
-        if key == "memory":
-            removed.append({
-                "key": key, "label": TARGETS["memory"]["label"],
-                "count": inv["totals"]["memoryFiles"], "unit": "file(s)",
-                "detail": [f"{m['name']} - {m['facts']} fact(s)" for m in inv["memory"]],
-                "risk": "learned",
-            })
-        elif key == "affect":
-            removed.append({
-                "key": key, "label": TARGETS["affect"]["label"],
-                "count": inv["totals"]["affinityFiles"], "unit": "file(s)",
-                "detail": [
-                    f"{a['name']}{' (current crush)' if a['isCrush'] else ''} - {a['turns']} turn(s)"
-                    for a in inv["affinity"]
-                ],
-                "risk": "learned",
-            })
-        elif key == "buffers":
-            removed.append({
-                "key": key, "label": TARGETS["buffers"]["label"],
-                "count": inv["totals"]["bufferedChannels"], "unit": "channel(s)",
-                "detail": [
-                    f"{b['key']} - {b['entries']} msg(s)"
-                    + (" + saved summary" if b["summary"] else "")
-                    for b in inv["buffers"]
-                ],
-                "risk": "learned",
-            })
-        elif key == "skills":
-            removed.append({
-                "key": key, "label": TARGETS["skills"]["label"],
-                "count": inv["totals"]["skills"], "unit": "file(s)",
-                "detail": [f"{s['file']}{' (always on)' if s['always'] else ''}" for s in inv["skills"]],
-                "risk": "authored",
-            })
-        elif key == "stickerImages":
-            images = sorted(p.name for p in STICKER_DIR.glob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".gif"))
-            removed.append({
-                "key": key, "label": TARGETS["stickerImages"]["label"],
-                "count": len(images), "unit": "file(s)", "detail": images, "risk": "authored",
-            })
-        elif key in FILE_KEYS:
-            path = _file_for_target(key)
-            removed.append({
-                "key": key, "label": TARGETS[key]["label"], "count": 1, "unit": "file",
-                "detail": [path.name if path else key], "risk": "authored",
-            })
-
-    for key, target in TARGETS.items():
-        if key not in keys:
-            kept.append(f"{target['label']} - {target['what']}")
-
-    return {
-        "removed": removed,
-        "kept": kept,
-        # A reset that touches hand-written files has to be typed out, not clicked.
-        "typedConfirmation": "RESET" if any(r["risk"] == "authored" for r in removed) else None,
-        "learnedOnly": all(r["risk"] == "learned" for r in removed) if removed else True,
-    }
-
-
-# --- backup ----------------------------------------------------------------
-
-def _stamp() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
-
-
-def list_backups() -> list[dict]:
-    out = []
-    if not BACKUP_DIR.exists():
-        return out
-    for entry in sorted(BACKUP_DIR.iterdir(), reverse=True):
-        if not entry.is_dir():
-            continue
-        try:
-            manifest = json.loads((entry / "manifest.json").read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            manifest = None
-        out.append({
-            "id": entry.name,
-            "created": (manifest or {}).get("created"),
-            "targets": (manifest or {}).get("targets"),
-            "files": len(_manifest_files(manifest)) if manifest else None,
-        })
-    return out
-
-
-def _manifest_files(manifest) -> list[dict]:
-    """Normalise a manifest to {from, to} records.
-
-    Older manifests stored bare backup-relative strings and put the fixed-name
-    files under files/ - which is not where they belong.
-    """
     out = []
     for entry in (manifest or {}).get("files") or []:
         if isinstance(entry, str):
@@ -319,7 +214,7 @@ async def restore(backup_id: str) -> dict:
     return {"ok": True, "restored": restored}
 
 
-# --- execute ---------------------------------------------------------------
+# execute
 
 async def run(selected) -> dict:
     keys = _normalise(selected)
@@ -343,7 +238,7 @@ async def run(selected) -> dict:
         for path in sorted(MEMORY_DIR.glob("*.md")):
             if path.name != ".gitkeep":
                 rm(path, f"memory/{path.name}")
-        # The folder itself always survives - only the files inside are removed.
+        # The folder survives; only the files inside are removed.
         MEMORY_DIR.mkdir(parents=True, exist_ok=True)
     if "affect" in keys:
         for path in sorted(AFFINITY_DIR.glob("*.json")):

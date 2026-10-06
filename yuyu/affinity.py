@@ -18,8 +18,8 @@ DEFAULT_ELIGIBLE = ["he/him", "xe/xim"]
 DAY = 86_400
 HISTORY_LIMIT = 40
 
-# Every signal one turn can carry. Kept in one place so `turn_signals()` in
-# chat.py and the scoring below cannot drift apart.
+# Every signal one turn can carry, in one place so `turn_signals()` in
+# chat.py and the scoring below cannot drift.
 SIGNAL_FIELDS = (
     "addressed", "directReply", "askedAboutHer", "sharedTopics", "revealedSomething",
     "gratitude", "warm", "checkedIn", "apologised", "teased", "dismissed", "distant",
@@ -45,7 +45,7 @@ def is_crush_eligible_pronoun(pronouns: str | None) -> bool:
     text = str(pronouns or "").strip().lower()
     if not text:
         return False
-    # An explicit non-masculine set always wins, so "she/they" never qualifies.
+    # An explicit non-masculine set always wins: "she/they" never qualifies.
     if NOT_MASCULINE.search(text):
         return False
     tokens = [t for t in re.split(r"[^a-z]+", text) if t]
@@ -63,11 +63,7 @@ def normalize_pronouns(raw) -> str:
 
 
 def crush_enabled() -> bool:
-    """The master switch for the crush feature.
 
-    Off means nobody is picked, nothing crush-shaped is shown, and she never
-    acts on it - but warmth, romance and the feelings all keep moving.
-    """
     return bool(config["affinity"].get("crush", True))
 
 
@@ -97,10 +93,10 @@ def _blank(slug: str, name: str = "") -> dict:
         "firstSeen": now,
         "lastInteraction": None,
         "crushEnabled": True,
-        # Who she actually has a crush on. Remembered so a near-equal challenger
-        # cannot quietly take the spot on a tie-break. Set by elect_crush().
+        # Who she has a crush on, so a near-equal challenger cannot take the
+        # spot on a tie-break. Set by elect_crush().
         "isCrush": False,
-        # Signed run of good or bad turns. Repetition is what makes something land.
+        # Signed run of good or bad turns; repetition is what makes it land.
         "streak": 0,
         "feelings": feelings.blank(),
         "feelingsAt": now,
@@ -149,7 +145,7 @@ def decayed(record: dict, now: float | None = None) -> dict:
         record["warmth"] = sign * max(0.0, abs(record["warmth"]) - pull)
         record["familiarity"] = max(0.0, record["familiarity"] - days * _setting("decayFamiliarityPerDay", 0.35))
         if record["romance"] > 0:
-            # A crush cools slower, with a floor, so absence is not amnesia.
+            # A crush cools slower and has a floor: absence is not amnesia.
             floor = _setting("romanceFloor", 25)
             record["romance"] = max(floor, record["romance"] - days * _setting("decayRomancePerDay", 0.7))
     feelings.decay(record, now)
@@ -180,8 +176,8 @@ def save(record: dict) -> dict:
     _clamp(record)
     record["history"] = list(record.get("history") or [])[-HISTORY_LIMIT:]
     AFFINITY_DIR.mkdir(parents=True, exist_ok=True)
-    # atomic_write stages in tmp/ and swaps, because every turn writes these
-    # while the dashboard is reading and a torn record is unparseable.
+    # atomic_write stages in tmp/ and swaps: every turn writes these while the
+    # dashboard reads, and a torn record is unparseable.
     atomic_write(_file_for(record["slug"]), json.dumps(record, indent=2) + "\n")
     with _lock:
         _cache[record["slug"]] = record
@@ -211,10 +207,9 @@ def set_pronouns(slug: str, name: str | None, pronouns: str) -> dict:
     return save(record)
 
 
-# Everything below edits files directly for the dashboard, so each one finishes
-# by re-electing and saving the whole roster. The crush belongs to everyone, and
-# patching a single file leaves a stale mark sitting in the others until
-# something else happens to touch them.
+# Everything below edits files for the dashboard, so each finishes by
+# re-electing and saving the whole roster: the crush belongs to everyone, and
+# patching one file leaves a stale mark in the others.
 
 def _roster_for(record: dict) -> list[dict]:
     everyone = load_all()
@@ -236,8 +231,8 @@ def adjust(slug: str, values: dict) -> dict:
     if record["interactions"] == 0:
         raise ValueError("no record for that person yet")
 
-    # Validate everything before anything lands. A half-applied edit would move
-    # the score without the panel ever being told it had.
+    # Validate everything before anything lands: a half-applied edit moves the
+    # score without telling the panel.
     updates: dict = {}
     for key, low, high in (("warmth", -100, 100), ("familiarity", 0, 100), ("romance", 0, 100)):
         if key not in values:
@@ -267,9 +262,8 @@ def designate(slug: str) -> dict:
         raise ValueError("no record for that person yet")
     if not is_crush_eligible_pronoun(record.get("pronouns")):
         raise ValueError("she only falls for " + " or ".join(_eligible_sets()))
-    # Picking someone outright outranks the softer opt-out toggle: if the host
-    # asks for the crush on somebody they had ruled out, let her fall for them
-    # again rather than refusing a click the panel just invited.
+    # An outright pick outranks the opt-out toggle: let her fall for somebody
+    # the host had ruled out rather than refusing a click the panel invited.
     record["crushEnabled"] = True
 
     margin = _setting("crushSwitchMargin", 20)
@@ -277,9 +271,8 @@ def designate(slug: str) -> dict:
     rivals = max((r["romance"] for r in everyone if r["slug"] != slug), default=0.0)
     record["romance"] = clamp(max(record["romance"], rivals + margin + 12, threshold + 5), 0, 100)
 
-    # Claim the spot before the election runs. Against a rival already at 100
-    # the clamp makes them level, and a tie decided by margin would hand it
-    # straight back to whoever was holding it.
+    # Claim the spot before the election runs: the clamp levels a rival at 100,
+    # and a margin tie-break would hand it straight back.
     for item in everyone:
         item["isCrush"] = item["slug"] == slug
     return _reel(everyone, record)
@@ -293,19 +286,14 @@ def release_crush() -> None:
 
 
 def sync_crush_marks() -> None:
-    """Re-elect the whole roster and write every mark back.
-
-    Used when the master switch flips, so the files on disk agree with the panel
-    instead of keeping an `isCrush` mark it will never show again. Scores are
-    left untouched - this only moves the one mark.
-    """
+  
     records = load_all()
     elect_crush(records)
     for record in records:
         save(record)
 
 
-# --- scoring ---------------------------------------------------------------
+# scoring
 
 def signals_from_turn(**kwargs) -> dict:
     return {field: bool(kwargs.get(field)) for field in SIGNAL_FIELDS}
@@ -354,8 +342,8 @@ def _score_warmth(sig: dict, record: dict) -> tuple[float, str]:
     if sig.get("distant"):
         delta -= 0.8; why.append("barely said anything")
 
-    # Repetition is what makes something land. Three good turns in a row is not
-    # three times one good turn, and three bad ones hurt more than the first did.
+    # Three good turns in a row is not three times one good turn, and three bad
+    # ones hurt more than the first did.
     streak = record.get("streak", 0)
     if delta > 0 and streak > 1:
         delta += min(streak, 6) * _setting("streakBonus", 0.3)
@@ -363,17 +351,16 @@ def _score_warmth(sig: dict, record: dict) -> tuple[float, str]:
         delta -= min(-streak, 6) * _setting("badStreakBonus", 0.45)
 
     if delta > 0:
-        # Loss lands harder than the same amount of gain. And while she is still
-        # annoyed or sad about how someone treated her, being nice again does not
-        # land as fast - forgiveness takes a few turns, like it does for anyone.
+        # Loss lands harder than equal gain, and while she is still annoyed being
+        # nice again does not land: forgiveness takes a few turns.
         delta *= _setting("warmthRecoverScale", 0.85)
         hurt = feelings.normalise(record).get("annoyed", 0) + feelings.normalise(record).get("sad", 0)
         delta *= clamp(1 - hurt / 130.0, 0.25, 1.0)
     elif delta < 0:
         delta *= _setting("warmthLossScale", 1.25)
 
-    # Diminishing returns, so nobody can be farmed to +100 in one conversation
-    # and nobody she dislikes falls forever.
+    # Diminishing returns, so nobody is farmed to +100 in one conversation and
+    # nobody she dislikes falls forever.
     headroom = (100 - record["warmth"]) if delta > 0 else (record["warmth"] + 100)
     scale = min(1.0, headroom / 25) if headroom > 0 else 1.0
     return delta * scale, ", ".join(why)
@@ -441,23 +428,21 @@ def elect_crush(records: list[dict]) -> dict | None:
     if crush_enabled() and eligible:
         if config["affinity"].get("crushAutoElect"):
             top = sorted(eligible, key=lambda r: (-r["romance"], -r["warmth"], r["slug"]))[0]
-            # A crush is a lean, not a pronoun: with nobody carrying any romance there
-            # is nobody to elect. This is what lets "Release the crush" and a reset
-            # actually leave the panel empty instead of re-electing the same person
-            # from warmth or the alphabetical tie-break.
+            # A crush is a lean, not a pronoun: with no romance there is nobody to
+            # elect, which is what lets a release or reset leave the panel empty
+            # instead of re-electing by warmth or tie-break.
             if top["romance"] > 0:
                 holder = next((r for r in eligible if r.get("isCrush")), None)
-                # The margin protects a holder who still leans. A holder whose romance
-                # was reset to zero keeps no claim, so resetting them hands the spot on.
+                # The margin protects a holder who still leans. One whose romance
+                # was reset to zero keeps no claim, so the spot moves on.
                 if (holder is not None and holder["slug"] != top["slug"]
                         and holder["romance"] > 0):
                     if top["romance"] - holder["romance"] < _setting("crushSwitchMargin", 20):
                         top = holder
                 winner = top
         else:
-            # Manual (the default): the crush is the person the host picked, and
-            # only them. Nothing is elected from warmth or romance, so the spot
-            # never drifts to whoever she happened to be talking to most.
+            # Manual (the default): the crush is the host's pick and only them, so
+            # the spot never drifts to whoever she was talking to most.
             holder = next((r for r in eligible if r.get("isCrush")), None)
             if holder is not None and holder["romance"] > 0:
                 winner = holder
@@ -507,9 +492,8 @@ def apply_turn(slug: str, name: str, pronouns: str, sig: dict, topics=None,
     })
 
     _clamp(record)
-    # In manual mode this only re-affirms the host's pick; in auto mode it turns
-    # this very turn into the election. Either way it runs before the saves so
-    # everyone is persisted with the same answer.
+    # Manual: re-affirms the host's pick. Auto: makes this turn the election.
+    # Either way it runs before the saves so everyone persists the same answer.
     elect_crush(everyone)
     save(record)
     for other in everyone:
@@ -525,7 +509,7 @@ def apply_turn(slug: str, name: str, pronouns: str, sig: dict, topics=None,
     }
 
 
-# --- prompt rendering ------------------------------------------------------
+# prompt rendering
 
 def _describe(record: dict) -> str:
     familiarity, warmth = record["familiarity"], record["warmth"]
@@ -553,13 +537,6 @@ def _describe(record: dict) -> str:
 
 
 def render_for_prompt(records: list[dict]) -> str:
-    """A nudge, not a dossier. The numbers themselves never reach the model.
-
-    Deliberately does not elect anyone. This is handed only the people in the
-    current context window, and electing over that would name a local winner as
-    the crush - and then persist it. The crush comes from `crush_summary()`,
-    which always looks at everyone.
-    """
     if not config["affinity"]["enabled"] or not records:
         return ""
     lines = []
@@ -612,7 +589,7 @@ def render_bond_prompt(record: dict | None) -> str:
     return bond.render_prompt(record)
 
 
-# --- introspection ---------------------------------------------------------
+# introspection
 
 def summarise(record: dict) -> dict:
     def band(value, high, mid):
@@ -634,13 +611,13 @@ def summarise(record: dict) -> dict:
         "crushEnabled": record.get("crushEnabled") is not False,
         "isCrush": record.get("isCrush") is True,
         "streak": record.get("streak", 0),
-        # What she is feeling right now, and where that leaves her overall.
+        # What she feels right now, and where that leaves her overall.
         "feelings": {name: round(current[name], 1) for name in feelings.FEELINGS},
         "balance": balance,
         "moodLabel": feelings.label(balance),
         "bond": bonded,
         # Why the last few moves happened, so the panel can explain a score
-        # instead of showing a number that crept up while nobody looked.
+        # instead of showing one that crept up unnoticed.
         "history": list(record.get("history") or [])[-5:],
         "read": {
             "familiarity": band(record["familiarity"], 55, 20),
@@ -658,34 +635,17 @@ def ranked() -> list[dict]:
 
 
 def current_crush() -> dict | None:
-    """The one person, always elected from the whole roster.
-
-    Chat used to elect over whoever happened to be in the context window, so if
-    the real crush was not among the eight people being described she handed the
-    crush block to somebody else, or to nobody.
-    """
     return elect_crush(load_all())
 
 
 def crush_summary() -> dict | None:
-    """Who she has a crush on, as `!affinity`, the panel and reset report it.
-
-    By default that is the person the host picked, and only them. In auto mode,
-    anything that picks the crush out of `ranked()` by `romance > 0` gets it
-    wrong whenever a challenger is within the switch margin: the holder keeps
-    the spot by design while ranking puts the challenger on top.
-    """
+   
     winner = current_crush()
     return summarise(winner) if winner else None
 
 
 def owner_bond() -> dict | None:
-    """The bond with whoever built her, for the panel and `!bond`.
 
-    Found by the slug the bond stamped on itself the first time he talked to her,
-    rather than by Discord id, because an affinity record is keyed by name and
-    nobody stores the id on it.
-    """
     for record in load_all():
         if (record.get("bond") or {}).get("ownerSlug") != record["slug"]:
             continue

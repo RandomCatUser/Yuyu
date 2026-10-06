@@ -1,0 +1,148 @@
+  /* first-run wizard */
+  /* Full-screen overlay, hidden until setup is needed. */
+  .wizard {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: start center;
+    padding: clamp(16px, 5vh, 56px) 16px;
+    overflow-y: auto;
+    background: radial-gradient(120% 90% at 50% 0%, #12141b 0%, var(--bg) 62%);
+  }
+  .wizard[hidden] { display: none; }
+  .wiz {
+    width: 100%;
+    max-width: 560px;
+    display: grid;
+    gap: 14px;
+  }
+
+  /* Word labels; a finished step ticks from ::after. */
+  .wiz-steps { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .wiz-step {
+    position: relative;
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--ink-3);
+    background: var(--panel);
+  }
+  .wiz-step[aria-current="true"] { border-color: var(--accent); color: var(--ink); background: var(--wash); }
+  .wiz-step[data-done="true"] { color: var(--ink-2); border-color: rgba(64, 211, 156, 0.28); }
+  .wiz-step[data-done="true"]::after { content: "\2713"; margin-left: 5px; color: var(--ok); }
+  /* Preview appears once there is a picture. */
+  .wiz-shot {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 1px solid var(--line-2);
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+  .wiz-shot[hidden] { display: none; }
+  .wiz-shot img { width: 100%; height: 100%; object-fit: cover; }
+
+  .wiz-body {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--panel);
+  }
+  .wiz-body[hidden] { display: none; }
+  .wiz-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .wiz-foot .spacer { flex: 1; }
+  .wiz-note {
+    display: grid;
+    gap: 4px;
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink-2);
+  }
+  .wiz-note.bad { border-left-color: var(--bad); }
+  .wiz-note.ok { border-left-color: var(--ok); }
+  .wiz-note code { font-family: var(--mono); color: var(--ink); }
+  /* Presets for the common case; full form below. */
+  .wiz-presets { display: flex; flex-wrap: wrap; gap: 7px; }
+  .wiz-preset {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    background: var(--panel-2);
+    color: var(--ink-2);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .wiz-preset:hover { background: var(--panel-3); color: var(--ink); }
+  .wiz-preset[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); background: var(--wash); }
+  .wiz-preset img, .wiz-preset svg { width: 15px; height: 15px; object-fit: contain; }
+  .wiz-drop {
+    display: grid;
+    place-items: center;
+    gap: 6px;
+    padding: 22px 14px;
+    border: 1px dashed var(--line-2);
+    border-radius: var(--r);
+    background: var(--bg-2);
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .wiz-drop.over { border-color: var(--accent); background: var(--wash); color: var(--ink-2); }
+  .wiz-tally { display: grid; gap: 7px; }
+  .wiz-tally-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .wiz-tally-row i {
+    display: grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    font-size: 10px;
+    font-style: normal;
+    flex: none;
+  }
+  .wiz-tally-row[data-ok="true"] i { background: rgba(64, 211, 156, 0.16); color: var(--ok); }
+  .wiz-tally-row[data-ok="false"] i { background: rgba(255, 180, 92, 0.16); color: var(--warn); }
+  /* Portal extras: not needed to run her. */
+  .wiz-more {
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--bg-2);
+    padding: 10px 12px;
+  }
+  .wiz-more > summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--ink-2);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .wiz-more > summary::-webkit-details-marker { display: none; }
+  .wiz-more > summary::before { content: "+"; color: var(--ink-3); font-weight: 700; }
+  .wiz-more[open] > summary::before { content: "\2212"; }
+  .wiz-more > summary:hover { color: var(--ink); }

@@ -1,7 +1,3 @@
-"""Who she keeps quiet for.
-
-The per-person switch: no replies, no commands, no reactions. Not the same as
-forgetting - the line still enters the buffer and they keep their memory file."""
 
 from __future__ import annotations
 
@@ -18,27 +14,6 @@ _cache: dict | None = None
 
 
 def _read() -> dict:
-    """The file's contents, read once and remembered until something changes."""
-    global _cache
-    with _lock:
-        if _cache is None:
-            try:
-                raw = json.loads(MUTED_FILE.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                raw = {}
-            if not isinstance(raw, dict):
-                raw = {}
-            slugs = raw.get("muted")
-            _cache = {"muted": sorted({str(s).strip().lower() for s in slugs or [] if str(s).strip()})}
-        return _cache
-
-
-def _write(data: dict) -> None:
-    """Replace the file in one step: a reader must never see it half-written.
-
-    The scratch copy stages in tmp/ rather than beside muted.json - the same
-    guarantee, and no stray `.json.tmp` left lying next to the real data.
-    """
     global _cache
     with _lock:
         _cache = data

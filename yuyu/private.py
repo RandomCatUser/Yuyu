@@ -1,7 +1,3 @@
-"""Owner-only profile file.
-
-Never added to a prompt or handed to the model - read off disk and posted verbatim,
-only for a whitelisted Discord user ID."""
 
 from __future__ import annotations
 

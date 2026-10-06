@@ -1,8 +1,3 @@
-"""Rich presence: what Discord shows on her profile.
-
-The dashboard is a Flask thread and change_presence() belongs to the event loop,
-so a request schedules onto that loop and waits for the result. Presence is
-public, so it may say she is busy but never who with."""
 
 from __future__ import annotations
 
@@ -41,37 +36,28 @@ _STATUSES = {
 
 
 def activity_label() -> str:
-    """What the `{activity}` placeholder says.
-
-    Only ever claims that she is busy, never with whom: a profile card is
-    visible to everyone in every server she is in.
-    """
     idle = time.time() - _last_activity
     return "chatting right now" if idle < ACTIVE_FOR else "hanging out"
 
 
 def note_activity() -> None:
-    """Called whenever she actually answers somebody."""
     global _last_activity
     _last_activity = time.time()
 
 
 def attach(loop, client) -> None:
-    """Remember the loop and client, so a dashboard request can push an edit."""
     global _loop, _client
     with _lock:
         _loop, _client = loop, client
 
 
 def detach() -> None:
-    """Forget them. Used on shutdown and between tests."""
     global _loop, _client
     with _lock:
         _loop, _client = None, None
 
 
 def live_values() -> dict:
-    """The placeholders only the running bot can answer."""
     servers = len(guild_mod.list_guilds())
     return {
         "servers": f"{servers} servers" if servers else "",
@@ -80,7 +66,6 @@ def live_values() -> dict:
 
 
 def preview() -> dict:
-    """Exactly what would be sent - this is what the panel shows."""
     return build_presence(live_values())
 
 
@@ -103,17 +88,10 @@ async def _push(client: discord.Client, wanted: dict) -> None:
 
 
 async def refresh(client: discord.Client, *, force: bool = False) -> bool:
-    """Recompute and push, but only if something actually changed.
-
-    Throttled rather than merely rate-limited: she replies to every message, and
-    re-sending an identical presence each time is a gateway packet per reply for
-    no visible difference. The check comes before the work, so a quiet bot does
-    not scan the memory folder either.
-    """
     global _last_push, _last_sent
     now = time.time()
     if not force and now - _last_push < MIN_INTERVAL:
-        return False  # her next reply, past the window, will finish the job
+        return False
     wanted = preview()
     if wanted == _last_sent:
         return False
@@ -123,13 +101,6 @@ async def refresh(client: discord.Client, *, force: bool = False) -> bool:
 
 
 def apply_now() -> tuple[bool, str]:
-    """Push an edited presence from the dashboard's Flask thread.
-
-    Returns (ok, why). The coroutine is scheduled onto the bot's own loop -
-    `change_presence()` talks to Discord over a connection this thread does not
-    own - and the wait is deliberate, so the panel shows "updated" only once
-    Discord has it.
-    """
     global _last_push, _last_sent
     with _lock:
         loop, client = _loop, _client

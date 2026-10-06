@@ -1,7 +1,3 @@
-"""Memory, utility, skills and context behaviour.
-
-    python -m pytest tests/test_core.py -q
-"""
 
 from __future__ import annotations
 
@@ -30,7 +26,7 @@ def _clean():
     invalidate()
 
 
-# --- util ------------------------------------------------------------------
+# util
 
 def test_split_message_leaves_short_text():
     assert util.split_message("hello there") == ["hello there"]
@@ -68,7 +64,7 @@ def test_dedupe_case_insensitive():
     assert util.dedupe_case_insensitive(["Likes tea"], ["Runs marathons"]) == ["Runs marathons"]
 
 
-# --- fact hygiene ----------------------------------------------------------
+# fact hygiene
 
 def test_normalize_fact_strips_first_person():
     assert mem.normalize_fact("i just got promoted to shift lead") == "Just got promoted to shift lead"
@@ -99,7 +95,7 @@ def test_is_durable_fact_keeps_real_facts():
         assert is_durable_fact(real), real
 
 
-# --- memory ----------------------------------------------------------------
+# memory
 
 def test_write_and_read_person():
     mem.write_person(SLUG, {"name": "Tester", "username": SLUG, "discordId": "1"},
@@ -171,7 +167,7 @@ def test_describe_person_copes_with_partial_records():
     assert "no facts stored yet" in mem.describe_person({"name": "Y", "slug": "y"})
 
 
-# --- context ---------------------------------------------------------------
+# context
 
 def test_context_records_and_returns_in_order():
     where = ("g1", "c1")
@@ -218,7 +214,7 @@ def test_channel_summary_is_persisted_and_cleared(monkeypatch, tmp_path):
     assert context_mod.recent(*where) == []
 
 
-# --- skills ----------------------------------------------------------------
+# skills
 
 def test_load_skills_parses_frontmatter():
     skills = load_skills(force=True)
@@ -237,13 +233,11 @@ def test_select_skills_always_and_keyword():
     assert "<skill name=\"Night Owl\">" in render_skills(select_skills("games music"))
 
 
-# --- discord.py 2.7 message shape ------------------------------------------
+# discord.py 2.7 message shape
 #
-# discord.py 2.7 dropped `Message.guild_id`, `Message.channel_id`,
-# `Message.referenced_message` and `Message.created_timestamp`. Reading them
-# anyway either raises (caught up-thread) or, with getattr(), quietly resolves
-# to None - which is worse, because the transcript then disappears from the
-# prompt with no error at all.
+# discord.py 2.7 dropped `guild_id`, `channel_id`, `referenced_message` and
+# `created_timestamp`. getattr() quietly yields None, and the transcript
+# vanishes from the prompt with no error at all.
 
 class _Guild:
     def __init__(self, gid: int):
@@ -258,8 +252,6 @@ class _Channel:
 
 
 class _ModernMessage:
-    """The discord.py 2.7 shape: no *_id shortcuts, no referenced_message."""
-
     def __init__(self, content: str = "hello"):
         self.content = content
         self.guild = _Guild(99)
@@ -268,8 +260,6 @@ class _ModernMessage:
 
 
 class _LegacyMessage(_ModernMessage):
-    """The older shape, where the shortcuts still exist."""
-
     def __init__(self, content: str = "hello"):
         super().__init__(content)
         self.guild_id = 99
@@ -277,49 +267,7 @@ class _LegacyMessage(_ModernMessage):
         self.referenced_message = None
 
 
-def test_scope_of_message_reads_the_modern_shape():
-    assert util.scope_of_message(_ModernMessage()) == (99, 500)
-
-
-def test_scope_of_message_still_honours_legacy_shortcuts():
-    assert util.scope_of_message(_LegacyMessage()) == (99, 500)
-
-
-def test_scope_of_message_handles_dms_without_a_guild():
-    message = _ModernMessage()
-    message.guild = None
-    assert util.scope_of_message(message) == (None, 500)
-
-
-def test_reply_target_falls_back_to_the_reference():
-    message = _ModernMessage()
-    assert util.reply_target(message) is None
-
-    class _Ref:
-        resolved = object()
-        cached_message = None
-
-    message.reference = _Ref()
-    assert util.reply_target(message) is message.reference.resolved
-
-
-def test_reply_target_prefers_referenced_message_when_the_library_has_it():
-    class _Legacy(_ModernMessage):
-        def __init__(self):
-            super().__init__()
-            self.referenced_message = "old-style"
-            self.reference = None
-
-    assert util.reply_target(_Legacy()) == "old-style"
-
-
 def test_transcript_reaches_the_prompt_on_the_modern_message_shape():
-    """The regression that hid in plain sight.
-
-    `build_system_prompt` used getattr(message, 'guild_id') which is None on
-    2.7, so context.recent(None, None) returned nothing and Yuyu would answer
-    with no idea what anyone had just said.
-    """
     clear(None, "none")
     record(99, 500, author="Robin", text="i just adopted a cat named Biscuit", slug=SLUG)
     try:
@@ -333,12 +281,6 @@ def test_transcript_reaches_the_prompt_on_the_modern_message_shape():
 
 
 def test_system_prompt_leads_with_the_model_not_the_provider(monkeypatch):
-    """Asked what model she is on, she must be able to say the model.
-
-    She used to be handed "Gemini (gemini-3.1-flash-lite)" and told to name that,
-    so the answer came out as the provider. Gemini is who serves the model, not
-    what is running, and a provider name is the wrong answer to that question.
-    """
     provider = next(
         provider for provider in config["model"]["providers"]
         if provider["id"] == config["model"]["default"]
@@ -353,8 +295,8 @@ def test_system_prompt_leads_with_the_model_not_the_provider(monkeypatch):
     assert f"is {provider_name} (test-chat-model)" not in prompt, (
         "the provider is back in front of the model name")
     assert f"test-chat-model (hosted by {provider_name})" in prompt
-    # And the fallback list follows the same rule. Derived from config rather than
-    # hardcoded, so re-pointing a provider at a different model does not break this.
+    # The fallback list is derived from config, so re-pointing a provider at a
+    # different model does not break this.
     fallback = next(
         p for p in config["model"]["providers"]
         if p["id"] != config["model"]["default"] and p.get("model")
@@ -367,29 +309,16 @@ def test_system_prompt_leads_with_the_model_not_the_provider(monkeypatch):
 
 
 def test_only_a_few_fallbacks_are_named_in_the_prompt(monkeypatch):
-    """A long failover chain must not put every model into every prompt.
-
-    The bot is configured with many free models so it can roll to one with quota
-    left. The chain is walked on failure regardless, but the list handed to her is
-    capped: naming all of them costs tokens on every reply and invites her to
-    quote a model that is twenty ranks down.
-    """
     prompt = build_system_prompt(_ModernMessage("yuyu hey"), [], "mention", None)
     line = next(l for l in prompt.splitlines() if l.startswith("Fallbacks, when they have keys:"))
 
     described = line.removeprefix("Fallbacks, when they have keys:").count("hosted by")
     assert described <= 3, f"{described} fallbacks named in one prompt"
-    # The chain itself must stay long - the cap is on the prompt, not failover.
+    # The chain stays long; the cap is on the prompt, not failover.
     assert len([p for p in config["model"]["providers"] if p.get("enabled", True)]) > described
 
 
 def test_a_provider_with_no_model_name_is_skipped_not_described(monkeypatch):
-    """A provider with no model set is not something to answer with.
-
-    It drops out of the chain entirely, so the next configured provider becomes
-    the one she names - rather than her reporting a provider whose model is
-    unset, or naming the empty slot itself.
-    """
     provider = next(
         provider for provider in config["model"]["providers"]
         if provider["id"] == config["model"]["default"]

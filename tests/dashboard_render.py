@@ -1,15 +1,3 @@
-"""Runs the dashboard's inline script against a fake DOM and renders one view.
-
-    from dashboard_render import render_view   ->  (text, stdout)
-
-`node --check` catches a syntax error and nothing else. It cannot tell you that
-two editors for one file raced and the slower one won, which is exactly what
-happened: the page parsed, rendered, and threw away whatever you were typing.
-So this builds a DOM stub just rich enough for the view functions, feeds them a
-real snapshot, and returns what ended up on the page.
-
-Deliberately not a test module - `tests/test_dashboard.py` owns the assertions.
-"""
 
 from __future__ import annotations
 
@@ -21,8 +9,7 @@ import tempfile
 
 TEMPLATE = pathlib.Path(__file__).resolve().parents[1] / "yuyu" / "dashboard" / "templates" / "index.html"
 
-# Enough of a Document for el(), which dispatches on nodeType and appends
-# everything else as a text node.
+# Enough of a Document for el(): it dispatches on nodeType.
 _HARNESS = """
 function mk(tag) {
   const n = {
@@ -127,8 +114,8 @@ if (VIEW === "persona") {
 }
 """
 
-# Every view in one process. A throw is caught per view and recorded, so one
-# broken tab names itself instead of hiding the other eleven.
+# Every view in one process; a throw is caught per view and recorded, so
+# one broken tab names itself instead of hiding the rest.
 _MULTI_RUNNER = """
 await __tick();
 STATE = __SNAP__;
@@ -155,7 +142,7 @@ if (VIEW === "reset") {
 }
 """
 
-# How many columns the daily chart actually drew, and how many were quiet days.
+# Columns the daily chart drew, and how many were quiet days.
 _USAGE_CHART_PROBE = """
 if (VIEW === "usage") {
   const cols = __find(__host, "div").filter(n => String(n.className || "").includes("ucol"));
@@ -164,9 +151,8 @@ if (VIEW === "usage") {
 }
 """
 
-# Which logo files the Model view actually asked for. `el()` assigns `src` as a
-# property, so it lands straight on the node - the stub's no-op setAttribute is
-# not involved and the value is readable here.
+# Logos the Model view asked for. `el()` assigns `src` as a property, so it
+# lands on the node and is readable here.
 _LOGO_PROBE = """
 if (VIEW === "model") {
   __extra.logos = __find(__host, "img")
@@ -183,8 +169,7 @@ def _script() -> str:
     return html[start: html.index("</script>", start)]
 
 
-# A bond that exists, so the panel takes its populated branch. The live snapshot
-# has none until the owner has had a turn the running bot can score.
+# A bond that exists, so the panel takes its populated branch.
 _BOND = {
     "name": "Ray", "slug": "ray", "discordId": "1",
     "close": 42.0, "mood": -30.0, "moodWord": "rough", "caring": True,
@@ -195,11 +180,6 @@ _BOND = {
 
 
 def render_view(view: str, snapshot: dict, *, probe: str = "") -> tuple[str, dict]:
-    """Render one view. Returns (text-on-page, marker-object as JSON).
-
-    `probe` is one of the private probe constants above, or "" for a plain render.
-    Raises RuntimeError with node's own output if the script throws.
-    """
     code = _script()
     ids = sorted(set(re.findall(r'\$\("#([\w-]+)"\)', code)))
     body = (
@@ -217,8 +197,8 @@ def render_view(view: str, snapshot: dict, *, probe: str = "") -> tuple[str, dic
     with tempfile.TemporaryDirectory() as tmp:
         path = pathlib.Path(tmp) / "render.mjs"
         path.write_text(body, encoding="utf-8")
-        # utf-8 explicitly: the page text carries em dashes and stars, and the
-        # default Windows codec would throw on them instead of on a real fault.
+        # utf-8 explicitly: the page carries em dashes and stars, and the
+        # default Windows codec throws on those.
         done = subprocess.run(["node", str(path)], capture_output=True, text=True,
                               encoding="utf-8", timeout=60)
     if done.returncode != 0:
@@ -228,11 +208,6 @@ def render_view(view: str, snapshot: dict, *, probe: str = "") -> tuple[str, dic
 
 
 def render_views(views, snapshot: dict) -> dict[str, str]:
-    """Render several views in one node process. Returns {view: text-on-page}.
-
-    A view that throws comes back as "THREW: ..." rather than taking the whole
-    run down, so a single broken tab is reported by name.
-    """
     code = _script()
     ids = sorted(set(re.findall(r'\$\("#([\w-]+)"\)', code)))
     body = (

@@ -1,8 +1,3 @@
-"""Sticker images and reply emoji.
-
-Discord refuses bot tokens on the sticker API, so a "sticker" here is the image
-sent as an attachment. Drop files in stickers/, wire them up in stickers.json,
-and custom emoji are the fallback when no image matches."""
 
 from __future__ import annotations
 
@@ -97,7 +92,7 @@ def load_stickers(force: bool = False) -> dict:
     return data
 
 
-# --- server emoji (fallback) -----------------------------------------------
+# server emoji (fallback)
 
 _guild_emoji: dict[int, list[dict]] = {}
 
@@ -147,7 +142,7 @@ def _best(entries: list[dict], words: set[str]) -> dict | None:
     return scored[0][0]
 
 
-# --- picking ---------------------------------------------------------------
+# picking
 
 def pick_sticker_image(text: str, chance: float | None = None) -> dict | None:
     if not config["emoji"]["stickers"]:
@@ -202,7 +197,7 @@ def pick_sticker_emoji(text: str, guild_id=None, chance: float | None = None) ->
     return _match_guild_emoji(guild_id, words)
 
 
-# --- sending ---------------------------------------------------------------
+# sending
 
 async def send_sticker_image(channel, sticker: dict | None):
     """Attach a sticker image. Silently does nothing if it fails."""
@@ -229,7 +224,7 @@ async def react_to(message, emoji: str | None) -> bool:
         return False
 
 
-# --- dashboard support -----------------------------------------------------
+# dashboard support
 
 def sticker_inventory() -> dict:
     data = load_stickers(force=True)

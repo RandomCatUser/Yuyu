@@ -1,8 +1,3 @@
-"""Prefix commands.
-
-A hand-rolled router rather than discord.py's framework, so the exact command
-set (including `!secret.me`) behaves identically to the previous build.
-"""
 
 from __future__ import annotations
 
@@ -104,7 +99,7 @@ def _section(raw: str | None) -> str | None:
     return None
 
 
-# --- help / overview -------------------------------------------------------
+# help / overview
 
 @command("help", "List commands", f"{PREFIX}help")
 async def _help(message, raw: str, args: list[str]):
@@ -130,7 +125,7 @@ async def _help(message, raw: str, args: list[str]):
     )
 
 
-# --- memory ----------------------------------------------------------------
+# memory
 
 @command("about", "Review and edit what I know about you (buttons and forms)",
          f"{PREFIX}about", aliases=["aboutme", "whoknowsme", "profile", "memories"])
@@ -256,7 +251,7 @@ async def _people(message, raw: str, args: list[str]):
     await message.channel.send(embed=info_embed(title=f"People I know ({len(people)})", fields=fields, footer="memory/*.md"))
 
 
-# --- skills / stickers -----------------------------------------------------
+# skills / stickers
 
 @command("skills", "List the skill files in skills/", f"{PREFIX}skills")
 async def _skills(message, raw: str, args: list[str]):
@@ -301,7 +296,7 @@ async def _stickers(message, raw: str, args: list[str]):
     )
 
 
-# --- affect ----------------------------------------------------------------
+# affect
 
 @command("pronouns", "Set your pronouns so I know how to talk to you", f"{PREFIX}pronouns <he/him>")
 async def _pronouns(message, raw: str, args: list[str]):
@@ -437,7 +432,7 @@ async def _crush(message, raw: str, args: list[str]):
     await _affinity(message, raw, args)
 
 
-# --- context / misc --------------------------------------------------------
+# context / misc
 
 @command("reset", "Clear short-term conversation context for this channel",
          f"{PREFIX}reset", aliases=["clear"])
@@ -504,7 +499,7 @@ async def _ping(message, raw: str, args: list[str]):
         await sent.edit(content="pong")
 
 
-# --- owner-only: the private file -----------------------------------------
+# owner-only: the private file
 
 @command("secret.me", "(owner only) your private file", f"{PREFIX}secret.me",
          aliases=["secret", "whois.me"], owner_only=True)
@@ -554,7 +549,7 @@ async def _secret_forget(message, raw: str, args: list[str]):
     await message.reply(embed=ok_embed(title=f"Dropped {result['removed']} line(s)"))
 
 
-# --- owner-only: reset -----------------------------------------------------
+# owner-only: reset
 
 @command("reset.preview", "(owner only) what a reset would remove", f"{PREFIX}reset.preview [targets]",
          owner_only=True)

@@ -1,4 +1,3 @@
-"""Affect: scoring, decay, and above all the crush rules."""
 
 from __future__ import annotations
 
@@ -21,16 +20,9 @@ BAD = dict(addressed=True, harsh=True, commanded=True, directReply=False, askedA
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch, tmp_path):
-    """Run against an empty temp directory.
-
-    This used to `unlink` every `affinity/*.json` after each test, which wiped
-    the live bot's records: all warmth, romance and the elected crush vanished
-    every time pytest ran. Isolating the directory keeps tests hermetic without
-    touching real data.
-    """
     monkeypatch.setattr(aff, "AFFINITY_DIR", tmp_path)
-    # This module is about the election rules, so exercise them in auto mode.
-    # The shipped default is manual; `test_manual_*` below covers that.
+    # Election rules, so auto mode. The shipped default is manual, covered by
+    # `test_manual_*` below.
     saved = config["affinity"].get("crushAutoElect")
     saved_crush = config["affinity"].get("crush", True)
     config["affinity"]["crushAutoElect"] = True
@@ -57,7 +49,7 @@ def turn(slug, name, pronouns, sig, times=1):
     return result
 
 
-# --- pronoun eligibility ---------------------------------------------------
+# pronoun eligibility
 
 @pytest.mark.parametrize("value", ["he/him", "he", "him", "He/Him/His", "he/him/his",
                                    "xe/xim", "Xe/Xim", "xe/xem", "xim"])
@@ -79,7 +71,7 @@ def test_eligible_set_is_config_driven():
         config["affinity"]["eligiblePronouns"] = ["xe/xim"]
         assert aff.is_crush_eligible_pronoun("xe/xim")
         assert not aff.is_crush_eligible_pronoun("he/him"), "narrowing must narrow"
-        # Empty falls back to the defaults rather than silently changing who she likes.
+        # Empty falls back to defaults rather than changing who she likes.
         config["affinity"]["eligiblePronouns"] = []
         assert aff.is_crush_eligible_pronoun("he/him")
         assert not aff.is_crush_eligible_pronoun("she/her")
@@ -102,7 +94,7 @@ def test_pronouns_from_facts():
     assert aff.pronouns_from_facts([]) == ""
 
 
-# --- scoring ---------------------------------------------------------------
+# scoring
 
 def test_warmth_builds_and_shrinks():
     _wipe()
@@ -127,7 +119,7 @@ def test_history_is_capped():
     assert len(aff.load("hist")["history"]) <= 40
 
 
-# --- crush election --------------------------------------------------------
+# crush election
 
 def test_nobody_eligible_means_no_crush():
     _wipe()
@@ -154,11 +146,6 @@ def test_he_him_accrues_romance():
 
 
 def test_romance_is_exclusive():
-    """Exclusivity lives in the election, not in the scores.
-
-    Kim keeps a lean of her own - she just is not the one. Wiping her number to
-    prove the point is exactly what used to cap her at a single turn's gain.
-    """
     _wipe()
     turn("ray", "Ray", "he/him", GOOD, times=80)
     turn("kim", "Kim", "he/him", WEAK, times=5)
@@ -173,10 +160,6 @@ def test_romance_is_exclusive():
 
 
 def test_a_challenger_is_not_wiped_on_their_own_turn():
-    """The actual bug: apply_turn re-elected *before* scoring and zeroed
-    everyone but the winner, so a challenger restarted at 0 on each of their
-    own turns and could never get past one turn's gain while the incumbent sat
-    on the decay floor. Nobody could ever be caught."""
     _wipe()
     turn("ray", "Ray", "he/him", GOOD, times=80)
     holder = aff.load("ray")
@@ -207,9 +190,6 @@ def test_a_stronger_contender_can_take_over():
 
 
 def test_the_spot_only_changes_hands_by_a_clear_margin():
-    """Without a margin, two people a point apart swap the crush every time
-    either of them says hello - which would show up as her personality
-    changing under someone mid-conversation."""
     _wipe()
     turn("ray", "Ray", "he/him", GOOD, times=80)
     ray = aff.load("ray")
@@ -228,9 +208,6 @@ def test_the_spot_only_changes_hands_by_a_clear_margin():
 
 
 def test_the_crush_is_elected_from_everyone_not_the_context_window():
-    """Ana is the only person in this conversation. Electing over just the
-    people in context would find nobody eligible and she would act like she had
-    no crush at all - while cheerfully giving the block to somebody else."""
     _wipe()
     turn("ray", "Ray", "he/him", GOOD, times=80)
     turn("ana", "Ana", "she/her", GOOD, times=25)
@@ -252,8 +229,6 @@ def test_opting_out_removes_them():
 
 
 def test_release_actually_leaves_no_crush():
-    """Release used to clear the marks, and then the very next election handed
-    the spot straight back to whoever was warmest or came first alphabetically."""
     _wipe()
     turn("ray", "Ray", "he/him", GOOD, times=80)
     turn("kim", "Kim", "he/him", GOOD, times=20)
@@ -294,23 +269,21 @@ def test_set_pronouns_can_enable_later():
     turn("late", "Late", "", GOOD, times=25)
     assert aff.elect_crush(aff.load_all()) is None
     aff.set_pronouns("late", None, "he/him")
-    # Eligible now, but a crush is a lean and not a pronoun: the pronouns alone
-    # do not manufacture one until a turn actually moves the romance.
+    # Eligible, but a crush is a lean, not a pronoun: pronouns alone do not
+    # manufacture one.
     assert aff.elect_crush(aff.load_all()) is None
     result = turn("late", "Late", None, GOOD)
     assert result["deltas"]["romance"] > 0, "romance should resume"
     assert aff.elect_crush(aff.load_all())["slug"] == "late"
 
 
-# --- manual crush (the shipped default) ------------------------------------
+# manual crush (the shipped default)
 
 def _manual():
     config["affinity"]["crushAutoElect"] = False
 
 
 def test_manual_crush_is_not_elected_by_conversation():
-    """Talking to her moves the same numbers, but hands out no crush: the spot
-    stays empty until the host picks someone."""
     _manual()
     turn("ray", "Ray", "he/him", GOOD, times=80)
     assert aff.load("ray")["romance"] > 0, "romance still builds on its own"
@@ -350,7 +323,7 @@ def test_manual_release_leaves_none():
     assert aff.crush_summary() is None
 
 
-# --- the master switch ------------------------------------------------------
+# the master switch
 
 def _off():
     config["affinity"]["crush"] = False
@@ -400,7 +373,7 @@ def test_switching_off_clears_the_mark_but_not_the_scores():
     assert kept["warmth"] == warmth
 
 
-# --- decay -----------------------------------------------------------------
+# decay
 
 def test_decay_pulls_warmth_toward_neutral():
     _wipe()
@@ -438,7 +411,7 @@ def test_recent_turn_does_not_decay():
     assert record["warmth"] == 40 and record["romance"] == 30
 
 
-# --- prompt ----------------------------------------------------------------
+# prompt
 
 def test_prompt_never_leaks_scores_or_the_word_romance():
     _wipe()

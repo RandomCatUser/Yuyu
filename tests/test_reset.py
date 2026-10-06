@@ -1,10 +1,3 @@
-"""Reset: preview accuracy, backup-before-delete, restore, and the typed-confirmation guard.
-
-This suite deletes real files on purpose, so it snapshots everything the reset
-can touch and puts it back in a fixture teardown. An earlier Node version used
-`void` on an async restore, which let a failed assertion leave the user without
-a persona - hence the safety net.
-"""
 
 from __future__ import annotations
 
@@ -29,13 +22,6 @@ GOOD = dict(addressed=True, directReply=True, askedAboutHer=True, sharedTopics=3
 
 
 def restore_people(people: dict[str, bytes]) -> None:
-    """Put the real people's records back the way the run found them.
-
-    A file that is gone was deleted by the tests, so it comes back byte for byte.
-    A file still on disk was never written by them - the only other writer is the
-    live bot, which keeps talking while pytest runs - so if its bytes differ, the
-    fact learned mid-run wins over the snapshot taken at setup.
-    """
     for key, raw in people.items():
         folder, name = key.split("/", 1)
         base = AFFINITY_DIR if folder == "affinity" else MEMORY_DIR
@@ -46,17 +32,6 @@ def restore_people(people: dict[str, bytes]) -> None:
 
 @pytest.fixture(autouse=True)
 def _safety_net():
-    """Snapshot authored files *and* real people's data, restore it all on teardown.
-
-    The authored files were always covered. The people were not: `run(["affect"])`
-    deletes every affinity file and `run(["memory"])` every memory file, neither
-    limited to the A and B slugs this suite creates. So every pytest run quietly
-    destroyed whatever real records existed - the elected crush included - and the
-    teardown only ever put back A and B. Both directories are snapshotted in full
-    now: a file the tests deleted comes back byte for byte, a file they never
-    touched keeps whatever the live bot wrote into it while pytest ran, and files
-    created by the tests go away again.
-    """
     snapshot = {}
     for rel in ("persona.md", "stickers.json", "config.json"):
         path = ROOT / rel
@@ -91,14 +66,12 @@ def _safety_net():
         (AFFINITY_DIR / f"{slug}.json").unlink(missing_ok=True)
     for rel, content in snapshot.items():
         (ROOT / rel).write_text(content, encoding="utf-8")
-    # Real records: deleted-by-the-tests comes back byte for byte; updated by the
-    # live bot mid-run keeps the newer content (see restore_people).
+    # Real records: test-deleted ones come back byte for byte; ones the live bot
+    # wrote mid-run keep the newer content.
     restore_people(people)
-    # Then remove what the tests created, so a run leaves both directories as it
-    # found them. A file the *live bot* wrote during the run is not in `people`,
-    # but it also cannot be mistaken for a fixture slug: anything the bot
-    # creates mid-run is a brand-new speaker, and a new speaker cannot reach a
-    # crush-worthy affinity score inside one test pass.
+    # Remove what the tests made, so a run leaves both directories as found. A
+    # file the live bot wrote is not in `people`, but cannot be mistaken for a
+    # fixture either: a brand-new speaker cannot reach crush-worthy in one pass.
     for path in AFFINITY_DIR.glob("*.json"):
         if f"affinity/{path.name}" not in people:
             path.unlink(missing_ok=True)
@@ -119,28 +92,14 @@ def inv():
     return asyncio.run(reset_mod.inventory())
 
 
-# --- the safety net itself ---------------------------------------------------
+# the safety net itself
 
 def test_a_person_the_tests_deleted_comes_back_byte_for_byte():
-    """The bug the fixture exists for: `run(["memory"])` wipes every real record."""
-    path = MEMORY_DIR / "someone.md"
-    path.unlink(missing_ok=True)
-    restore_people({f"memory/{path.name}": b"# Someone\n- keeps a cat\n"})
-    assert path.read_bytes() == b"# Someone\n- keeps a cat\n"
-    path.unlink(missing_ok=True)
-
-
-def test_a_person_the_live_bot_updated_mid_run_is_not_rolled_back():
-    """pytest runs beside the running bot, which writes to the same directories.
-
-    Restoring the setup snapshot unconditionally would quietly erase whatever she
-    learned in the messages that arrived during this test pass.
-    """
     path = MEMORY_DIR / "live-mid-run.md"
     path.write_bytes(b"snapshot at setup\n+ fact learned mid-run\n")
     try:
         restore_people({f"memory/{path.name}": b"snapshot at setup\n"})
-        # It is still on disk, so the tests never wrote it: the mid-run fact wins.
+        # Still on disk, so the tests never wrote it: the mid-run fact wins.
         assert path.read_bytes() == b"snapshot at setup\n+ fact learned mid-run\n"
     finally:
         path.unlink(missing_ok=True)
@@ -157,7 +116,7 @@ def test_a_newcomer_who_arrived_mid_run_stays_off_the_restore_list():
         path.unlink(missing_ok=True)
 
 
-# --- inventory -------------------------------------------------------------
+# inventory
 
 def test_inventory_counts_files_and_buffers():
     data = inv()
@@ -176,7 +135,7 @@ def test_inventory_names_the_current_crush():
     assert next(a for a in data["affinity"] if a["slug"] == A)["isCrush"]
 
 
-# --- preview ---------------------------------------------------------------
+# preview
 
 def test_preview_lists_what_goes_and_what_is_kept():
     plan = asyncio.run(reset_mod.preview(["memory"]))
@@ -200,7 +159,7 @@ def test_preview_of_nothing_is_empty_not_an_error():
     assert asyncio.run(reset_mod.preview(["not-a-thing"]))["removed"] == []
 
 
-# --- run + backup ----------------------------------------------------------
+# run + backup
 
 def test_reset_deletes_the_target_and_nothing_else():
     result = asyncio.run(reset_mod.run(["memory"]))

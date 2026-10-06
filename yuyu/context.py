@@ -1,7 +1,3 @@
-"""Per-channel conversation buffer.
-
-Recent messages plus a rolling summary, keyed by (guild, channel) with a TTL.
-discord.py 2.7 dropped Message.guild_id, so scope has to come off the objects."""
 
 from __future__ import annotations
 

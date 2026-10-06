@@ -10,20 +10,6 @@ DISCORD_MAX = 2000
 
 
 def atomic_write(path, text: str, encoding: str = "utf-8") -> None:
-    """Replace a file in one step, with the half-written copy staged in tmp/.
-
-    config.json, a memory file and the quiet list are all read by other
-    threads while this one writes them, and a reader must never catch one part
-    through a write - least of all after a crash, where a truncated config
-    would fail to parse and take the whole bot down with it.
-
-    The stage lives in tmp/ because that is what the folder is for: nothing
-    half-written sits beside real data. Only when the target is on another
-    volume does it fall back to staging alongside the target, because
-    `os.replace` refuses to move a file across drives and a rename that fails
-    is worse than a stray scratch file. Beside the target is still atomic -
-    just not where anyone asked for.
-    """
     from .config import TMP_DIR
 
     path = Path(path)
@@ -47,23 +33,13 @@ def atomic_write(path, text: str, encoding: str = "utf-8") -> None:
             _swap(TMP_DIR)
             return
         except OSError:
-            # Same reported volume but still refused - Windows and POSIX differ
-            # on how they tell you about the network and the temp drives.
+            # Same volume, still refused: Windows and POSIX report the network and
+            # temp drives differently.
             pass
     _swap(path.parent)
 
 
 def scope_of_message(message) -> tuple:
-    """(guild_id, channel_id) for a discord.py Message, across library versions.
-
-    discord.py 2.7 removed `Message.guild_id` and `Message.channel_id`; the scope
-    now has to come from the channel and guild objects. Older versions still have
-    the attributes, so check both. Lives here rather than in `chat` because
-    `persona` needs it too and `chat` already imports `persona`.
-
-    Without this, a version mismatch resolves to (None, None) and the recent
-    transcript silently vanishes from the prompt.
-    """
     guild_id = getattr(message, "guild_id", None)
     if guild_id is None:
         guild = getattr(message, "guild", None)
@@ -78,11 +54,6 @@ def scope_of_message(message) -> tuple:
 
 
 def reply_target(message):
-    """The message being replied to, across discord.py versions.
-
-    Older releases expose `Message.referenced_message`; 2.7 dropped it and keeps
-    the resolved copy on `Message.reference.resolved` instead.
-    """
     ref = getattr(message, "referenced_message", None)
     if ref is not None:
         return ref
@@ -93,10 +64,6 @@ def reply_target(message):
 
 
 def split_message(text: str, max_length: int = 1900) -> list[str]:
-    """Split on whitespace so a message never exceeds Discord's 2000 char limit.
-
-    Prefers blank lines, then newlines, then spaces. Never cuts a word in half.
-    """
     clean = (text or "").strip()
     if not clean:
         return []
@@ -133,10 +100,6 @@ def split_message(text: str, max_length: int = 1900) -> list[str]:
 
 
 def slugify(value, max_len: int = 40) -> str:
-    """Reduce to a safe filename stem: only [a-z0-9_-] survives.
-
-    Path traversal and Windows-reserved characters are impossible by construction.
-    """
     import unicodedata
 
     text = unicodedata.normalize("NFKD", str(value or ""))
@@ -156,8 +119,8 @@ def truncate(text: str, max_len: int) -> str:
     return text[: max_len - 1].rstrip() + "…"
 
 
-# Noise words for keyword matching. They pass a length filter but carry no topical
-# signal, and letting them through makes sticker and skill matching fire on
+# Noise words for keyword matching: they pass a length filter but carry no
+# topical signal, and letting them through fires sticker and skill matching on
 # almost any sentence.
 STOPWORDS = frozenset(
     """
@@ -171,11 +134,6 @@ STOPWORDS = frozenset(
 
 
 def keywords_of(text: str) -> set[str]:
-    """Topic words for skill and sticker matching.
-
-    Short words are usually noise, but short tokens containing a digit carry real
-    signal - "3am", "1o", "4o" - so those are kept regardless of length.
-    """
     words = re.sub(r"[^a-z0-9\s]", " ", str(text or "").lower()).split()
     return {w for w in words if any(c.isdigit() for c in w) or (len(w) > 3 and w not in STOPWORDS)}
 

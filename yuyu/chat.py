@@ -1,5 +1,3 @@
-"""The reply pipeline: prompt assembly, streaming, and memory/affect bookkeeping."""
-
 from __future__ import annotations
 
 import asyncio
@@ -32,7 +30,7 @@ from .util import reply_target, scope_of_message, slugify, split_message, trunca
 _inflight = 0
 _lock = threading.Lock()
 
-# --- identity --------------------------------------------------------------
+# identity
 
 def slug_for(user) -> str:
     return slugify(getattr(user, "name", None) or getattr(user, "display_name", "") or str(user.id), 40)
@@ -61,11 +59,7 @@ def log_message(message) -> None:
 
 
 def remember_person(user) -> None:
-    """Everyone who speaks gets a memory file, not only the ones who say a fact.
 
-    Without this most of the server stayed invisible: no panel entry, no file for
-    pronouns, nothing until they happened to say something memorable.
-    """
     if getattr(user, "bot", False):
         return
     if not config["memory"]["enabled"]:
@@ -80,7 +74,7 @@ def remember_person(user) -> None:
         print(f"[memory] could not open a file for {user}: {exc}")
 
 
-# --- turn signals ----------------------------------------------------------
+# turn signals
 
 HER_INTERESTS = {
     "model", "models", "eval", "evals", "latency", "training", "dataset",
@@ -97,8 +91,8 @@ ASKS_ABOUT_HER = re.compile(
     re.I,
 )
 
-# How they treat her, as distinct from what they asked for. Warmth tracks this
-# far more than it tracks who spoke to whom.
+# How they treat her, not what they asked for: warmth tracks this far more
+# than who spoke to whom.
 WARM = re.compile(
     r"\b(you'?re (great|good|awesome|sweet|lovely|the best|so good)|good (bot|answer|reply|point)|"
     r"nice (one|work|answer|reply|job)|appreciate you|thank u|you'?re doing great|"
@@ -117,8 +111,8 @@ APOLOGISED = re.compile(
     r"didn'?t mean|didn'?t mean to|wasn'?t me|that was unfair|dont be like that)\b",
     re.I,
 )
-# Affectionate ribbing. Teasing is how friends talk, and it reads as warmth
-# unless the message is also being cruel - which `harsh` catches separately.
+# Affectionate ribbing: teasing reads as warmth unless it is also cruel, which
+# `harsh` catches separately.
 TEASED = re.compile(
     r"(\b(lol|lmao|rofl|ratio|skill issue|clown|goofy|dork|nerd|simp|pfp)\b|[😂🤣💀😹])",
     re.I,
@@ -145,11 +139,7 @@ QUESTION_HELPER = re.compile(
 
 
 def is_durable_fact(raw) -> bool:
-    """Reject questions, reactions, bare moods and non-text entries.
 
-    Models occasionally return objects inside these arrays, and a dict would be
-    stringified into junk like "{'text': 'Nurse'}" and written straight to memory.
-    """
     if isinstance(raw, dict):
         raw = raw.get("text") or raw.get("fact") or raw.get("value") or ""
     if not isinstance(raw, str):
@@ -177,7 +167,6 @@ def _hour_is_late(now: datetime | None = None) -> bool:
 
 
 def _is_distant(text: str) -> bool:
-    """Two characters or fewer. Reads as being ignored even when it is not meant to."""
     return len((text or "").strip()) <= 2
 
 
@@ -204,7 +193,7 @@ def turn_signals(text: str, trigger: str | None, trigger_reason: str | None = No
     }
 
 
-# --- natural-language memory ----------------------------------------------
+# natural-language memory
 
 REMEMBER_RE = re.compile(r"^\s*(?:please\s+)?(?:can you\s+|could you\s+)?remember(?:\s+that)?\s+(.{3,})$", re.I)
 FORGET_RE = re.compile(r"^\s*(?:please\s+)?(?:can you\s+|could you\s+)?forget(?:\s+that)?\s+(.{2,})$", re.I)
@@ -220,7 +209,6 @@ NL_SECTIONS = [
 
 
 async def handle_natural_memory(message, user_text: str) -> str | None:
-    """Catch "remember X" / "forget X" with no model call, so nothing gets paraphrased."""
     if not config["memory"]["enabled"]:
         return None
     slug = slug_for(message.author)
@@ -250,7 +238,7 @@ async def handle_natural_memory(message, user_text: str) -> str | None:
     return None
 
 
-# --- memory extraction -----------------------------------------------------
+# memory extraction
 
 _watermark: dict[str, float] = {}
 _last_attempt: dict[str, float] = {}
@@ -261,38 +249,6 @@ _REPLIED_WINDOW = 120.0
 
 
 def _already_replied(message_id: int) -> bool:
-    """One message, one reply, even if the handler somehow runs twice."""
-    now = time.time()
-    for mid, ts in list(_replied.items()):
-        if now - ts > _REPLIED_WINDOW:
-            _replied.pop(mid, None)
-    return message_id in _replied
-
-EXTRACT_SYSTEM = """You extract durable facts about ONE person from the messages THEY sent.
-Respond with ONLY a JSON object shaped like this, no prose and no code fence:
-{"details": ["..."], "notes": ["..."]}
-
-- "details" = stable facts about them: name, age, city, job, pronouns, family, pets, possessions.
-- "notes" = current context: what they are building, what they care about, ongoing plans.
-
-Rules:
-- Use ONLY lines written by that person. Never record what anyone else said.
-- Write each entry as a SHORT NOUN PHRASE, not a sentence. Drop the "i"/"my" framing.
-- Never record a question, a greeting, a mood, or what someone was doing in this exact chat.
-- Never guess or infer. If it is not stated, it does not go in.
-- Empty arrays if there is nothing worth keeping. Maximum __MAX__ entries.
-
-Good: "Nurse in Lisbon", "Promoted to shift lead", "Works nights", "Building a model called Flux"
-Bad:  "bored", "i got promoted today", "what have you been working on", "seems like they might like cats"
-"""
-
-
-def render_extract_prompt(max_entries: int) -> str:
-    """Substitute the limit without str.format().
-
-    The prompt contains literal JSON, and .format() reads `{...}` as a
-    replacement field - so it raised KeyError and every extraction failed.
-    """
     return EXTRACT_SYSTEM.replace("__MAX__", str(int(max_entries)))
 
 
@@ -307,7 +263,6 @@ def _unprocessed(user, scope) -> str:
 
 
 async def extract_facts_for(user, scope) -> list[dict]:
-    """Sweep the backlog of user messages into memory. Never blocks a reply."""
     if not config["memory"]["autoExtract"]:
         return []
 
@@ -317,8 +272,8 @@ async def extract_facts_for(user, scope) -> list[dict]:
     wait = config["memory"]["extractCooldownMs"] / 1000 - (now - since)
 
     if wait > 0:
-        # Debounced, and re-armed so this backlog still gets swept once the
-        # window closes instead of being silently skipped forever.
+        # Debounced, and re-armed so this backlog still gets swept once the window
+        # closes rather than skipped forever.
         if slug not in _trailing:
             def _fire(user=user, scope=scope, slug=slug):
                 _trailing.pop(slug, None)
@@ -337,7 +292,6 @@ async def extract_facts_for(user, scope) -> list[dict]:
 
 
 async def compact_context(scope) -> None:
-    """Summarize older channel turns on the configured 30-minute cadence."""
     try:
         batch = context.compaction_batch(*scope)
     except OSError as exc:
@@ -416,13 +370,12 @@ async def _sweep(user, scope) -> list[dict]:
             print(f"[memory] {slug} +{len(added)}: {' | '.join(a['text'] for a in added)}")
         return added
     except Exception:
-        # Traceback, not str(exc): the plain message read as `'"details"'` and hid
-        # a whole session's worth of failures.
+        # Traceback, not str(exc): the plain message hid a session's failures.
         print(f"[memory] extraction failed:\n{traceback.format_exc()}")
         return []
 
 
-# --- people + affect -------------------------------------------------------
+# people + affect
 
 async def _gather_people(message) -> list[dict]:
     if not config["memory"]["enabled"]:
@@ -456,9 +409,8 @@ async def _gather_affect(people: list[dict]) -> dict | None:
             records.append(record)
     if not records:
         return None
-    # Elected from everyone she has ever met, not from whoever is in this
-    # context window: electing over the window hands the crush block to a local
-    # winner, which is a different person whenever the real one is away.
+    # Elected from everyone she has met, not the context window: electing over the
+    # window hands the crush to a local winner.
     crush = await asyncio.to_thread(aff.current_crush)
     bonded = await asyncio.to_thread(aff.owner_bond)
     bond_record = None
@@ -479,8 +431,8 @@ async def _record_affect(message, user_text: str, trigger: str | None) -> None:
         slug = slug_for(message.author)
         person = await asyncio.to_thread(read_person, slug)
         facts = [*(person or {}).get("details", []), *(person or {}).get("notes", [])]
-        # Discord does not expose user pronouns through discord.py, so stored
-        # facts and `!pronouns` are the source of truth.
+        # discord.py exposes no pronouns, so stored facts and `!pronouns` are the
+        # source of truth.
         pronouns = aff.pronouns_from_facts(facts)
         sig = turn_signals(user_text, trigger)
         topics = sorted(w for w in HER_INTERESTS if re.search(rf"\b{re.escape(w)}\b", user_text, re.I))
@@ -505,16 +457,15 @@ async def _record_affect(message, user_text: str, trigger: str | None) -> None:
         print(f"[affinity] {exc}")
 
 
-# --- reply -----------------------------------------------------------------
+# reply
 
 def is_busy() -> bool:
     with _lock:
         return _inflight >= config["limits"]["maxConcurrentGenerations"]
 
 
-# Emoji are stripped from every reply - stickers carry the visual, and a wall of
-# 😄 reads like a bot. Python's `re` has no \p{Extended_Pictographic}, so this
-# spells out the emoji ranges plus the joiners that glue sequences together.
+# Emoji are stripped from every reply: stickers carry the visual. `re` has no
+# \p{Extended_Pictographic}, so the ranges and the joiners are spelled out.
 _EMOJI_RE = re.compile(
     "["
     "\u200d"                     # zero-width joiner
@@ -534,7 +485,6 @@ _EMOJI_RE = re.compile(
 
 
 def strip_emoji(text: str) -> str:
-    """Remove emoji without leaving double spaces or ' , ' artefacts behind."""
     text = _EMOJI_RE.sub(" ", str(text or ""))
     text = re.sub(r"[^\S\r\n]{2,}", " ", text)   # collapse runs of spaces only
     text = re.sub(r" +\n", "\n", text)
@@ -548,7 +498,7 @@ def post_process(text: str) -> str:
     text = re.sub(r"^```\w*\n?", "", text)
     text = re.sub(r"```$", "", text)
     # Drop a role prefix in whichever voice is active, so one account's
-    # "Name:" never survives into the other's reply.
+    # "Name:" never leaks into the other's reply.
     text = re.sub(rf"^\s*(?:assistant|{re.escape(bot_name())})\s*:\s*", "", text, flags=re.I)
     return strip_emoji(text).strip()
 
@@ -587,11 +537,7 @@ class _Typing:
 
 
 async def reply(message, trigger: str | None, text: str | None = None, extra_prompt: str | None = None) -> str:
-    """Generate and deliver a reply. Returns the text that was sent.
 
-    `text` overrides what the user "said" without cloning the message, which
-    discord.py would not allow - the channel and guild live on the object.
-    """
     global _inflight
     if _already_replied(message.id):
         print(f"[reply] suppressed duplicate for message {message.id} ({message.channel})")
@@ -638,7 +584,7 @@ async def reply(message, trigger: str | None, text: str | None = None, extra_pro
             await message.reply("lost the plot there, say that again?")
             return ""
 
-        # Sticker images are the visual. No emoji in her replies at all.
+        # Sticker images are the visual; no emoji in her replies at all.
         sticker_image = pick_sticker_image(f"{user_text} {reply_text}")
 
         if config["formatting"]["allowCards"]:
@@ -655,7 +601,7 @@ async def reply(message, trigger: str | None, text: str | None = None, extra_pro
                 for extra in chunks[1:]:
                     await message.channel.send(extra)
         else:
-            # The verdict stays in plain text; the card carries the data.
+            # The verdict stays plain text; the card carries the data.
             await message.channel.send(content=head or None, embed=embeds[0])
             for extra_embed in embeds[1:]:
                 await message.channel.send(embed=extra_embed)
@@ -674,7 +620,7 @@ async def reply(message, trigger: str | None, text: str | None = None, extra_pro
 
         context.record(*scope, author=bot_name(), text=reply_text, is_bot=True)
 
-        # Fire-and-forget: never make the user wait on memory bookkeeping.
+        # Fire-and-forget: never make the user wait on memory bookkeeping. Only
         # extract_facts_for applies the cooldown; _sweep alone would hammer the API.
         asyncio.create_task(extract_facts_for(message.author, scope))
         asyncio.create_task(_record_affect(message, user_text, trigger))

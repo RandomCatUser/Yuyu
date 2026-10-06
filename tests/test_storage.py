@@ -1,12 +1,3 @@
-"""Where things are kept on disk: cache/, tmp/, and how a file gets replaced.
-
-    python -m pytest tests/test_storage.py -q
-
-Every write that another thread might read mid-flight - config.json, the quiet
-list, a memory file, an affect record - goes through `atomic_write`. The point
-of the two folders is that derived data survives a restart (`cache/`) while
-half-written data survives nothing at all (`tmp/`).
-"""
 
 from __future__ import annotations
 
@@ -29,8 +20,6 @@ def test_the_folders_are_named_and_created(monkeypatch, tmp_path):
 
 
 def test_a_write_stages_in_tmp_and_leaves_nothing_behind(monkeypatch, tmp_path):
-    """The half-written copy must not sit next to the real file, and must not
-    outlive the write."""
     stage_dir = tmp_path / "tmp"
     monkeypatch.setattr(config_mod, "TMP_DIR", stage_dir)
     target = tmp_path / "data" / "thing.json"
@@ -42,9 +31,6 @@ def test_a_write_stages_in_tmp_and_leaves_nothing_behind(monkeypatch, tmp_path):
 
 
 def test_a_write_on_another_volume_stages_beside_the_target(monkeypatch, tmp_path):
-    """`os.replace` refuses to move a file across drives, so staging in tmp/
-    would fail outright - and a rename that fails is worse than a scratch file
-    in the wrong folder. Beside the target is still atomic."""
     class _OtherVolume:
         drive = "Z:"
 
@@ -58,7 +44,6 @@ def test_a_write_on_another_volume_stages_beside_the_target(monkeypatch, tmp_pat
 
 
 def test_a_replaced_file_never_exposes_the_old_one(monkeypatch, tmp_path):
-    """Rewriting must leave the new contents, in one step, not a blend of both."""
     stage_dir = tmp_path / "tmp"
     monkeypatch.setattr(config_mod, "TMP_DIR", stage_dir)
     target = tmp_path / "thing.json"
@@ -71,8 +56,6 @@ def test_a_replaced_file_never_exposes_the_old_one(monkeypatch, tmp_path):
 
 
 def test_the_quiet_list_stages_its_writes_in_tmp(monkeypatch, tmp_path):
-    """This used to leave `muted.json.tmp` beside the real file, which read like
-    a second, half-written switch list."""
     stage_dir = tmp_path / "tmp"
     monkeypatch.setattr(mute, "MUTED_FILE", tmp_path / "muted.json")
     monkeypatch.setattr(config_mod, "TMP_DIR", stage_dir)

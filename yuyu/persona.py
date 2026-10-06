@@ -80,8 +80,8 @@ def _where(guild, trigger: str | None) -> str:
     return "\n".join(bits)
 
 
-# How many fallback models she is told about. The chain itself is unlimited; this
-# only bounds the list written into her prompt.
+# How many fallback models she is told about. The chain is unlimited; this only
+# bounds the list in her prompt.
 _FALLBACKS_NAMED_IN_PROMPT = 3
 
 
@@ -104,21 +104,17 @@ def _configured_chat_models() -> tuple[str, list[str]]:
         return "not currently configured", []
 
     def describe(provider: dict) -> str:
-        # Model first, provider second, in brackets. Asked what she is running, she
-        # has to be able to say "llama-3.3-70b" - not "Groq", which is who serves
-        # it. The provider is there so she can name it when someone asks who bills
-        # her, which is a different question and the rarer one.
+        # Model first, provider second, in brackets: she must be able to say
+        # "llama-3.3-70b", not "Groq". The provider names who bills her.
         model = str(provider.get("model") or "").strip()
         who = str(provider.get("name") or provider.get("id") or "").strip()
         if not model:
             return who or "an unnamed model"
         return f"{model} (hosted by {who})" if who else model
 
-    # Only the first few are named in the prompt. The whole chain still fails over -
-    # this list is just so she can answer "and if that one is down?" - and naming
-    # every configured model would put dozens of long model ids into the prompt of
-    # every single reply, which costs tokens and invites her to quote a model that
-    # is twenty ranks down the chain.
+    # Only the first few are named, so she can answer "and if that one is down?".
+    # Naming them all would put dozens of model ids in every reply, costing tokens
+    # and inviting her to quote one twenty ranks down.
     fallbacks = [
         describe(provider) for provider in available if provider is not primary
     ][:_FALLBACKS_NAMED_IN_PROMPT]
@@ -128,8 +124,8 @@ def _configured_chat_models() -> tuple[str, list[str]]:
 def _transcript(entries: list[dict]) -> str:
     lines = []
     for entry in entries:
-        # Only her own lines are "(you)". Another bot speaking in the channel
-        # must not be quoted back as though she said it.
+        # Only her own lines are "(you)": another bot must not be quoted back as
+        # though she said it.
         who = (
             f"{entry['author']} (you)"
             if entry["isBot"] and entry["author"] == bot_name()
@@ -159,9 +155,8 @@ def _people_block(people: list[dict]) -> str:
 
 def build_system_prompt(message, people: list[dict], trigger: str | None, affect: dict | None = None) -> str:
     guild = getattr(message, "guild", None)
-    # Scope has to come from the channel/guild objects: discord.py 2.7 dropped
-    # `Message.guild_id`, and falling back to None makes context.recent() return
-    # nothing - the whole conversation would vanish from the prompt.
+    # Scope comes from the channel/guild objects: discord.py 2.7 dropped
+    # `Message.guild_id`, and a None fallback makes context.recent() return nothing.
     guild_id, channel_id = scope_of_message(message)
 
     history = context.recent(
@@ -170,7 +165,7 @@ def build_system_prompt(message, people: list[dict], trigger: str | None, affect
         limit=config["context"].get("promptMessages", 12),
     )
     conversation_summary = context.summary_for(guild_id, channel_id)
-    # The message being answered is included so skill selection can see it.
+    # The message being answered is included so skill selection sees it.
     for_skills = "\n".join(
         [conversation_summary, *(e["text"] for e in history), getattr(message, "content", "") or ""]
     )

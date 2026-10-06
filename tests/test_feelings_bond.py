@@ -1,9 +1,3 @@
-"""Her temporary feelings, and the bond with whoever built her.
-
-Both are new, and both are the sort of thing that looks fine until something
-subtle is wrong: a feeling that never fades, a caring window that never closes,
-warmth that climbs no matter how somebody treats her.
-"""
 
 from __future__ import annotations
 
@@ -51,7 +45,7 @@ def _owner():
     return {**GOOD, "harsh": False, "commanded": False}
 
 
-# --- the shape of the thing --------------------------------------------------
+# the shape of the thing
 
 def test_there_are_eight_feelings_and_eight_words():
     assert len(feelings.FEELINGS) == 8
@@ -74,7 +68,7 @@ def test_a_junk_feelings_block_is_replaced_not_raised():
     assert set(out) == set(feelings.FEELINGS)
 
 
-# --- small steps, not big jumps ---------------------------------------------
+# small steps, not big jumps
 
 def test_one_good_message_moves_nothing_wildly():
     _turn("ray", "Ray", GOOD)
@@ -107,19 +101,17 @@ def test_feelings_are_capped():
     assert all(0 <= v <= 100 for v in f.values()), f
 
 
-# --- fading on their own -----------------------------------------------------
+# fading on their own
 
 def test_feelings_halve_on_the_configured_half_life():
-    """Each read fades from the last write, so the factor has to be measured
-    from a fresh record every time rather than applied twice to the same one."""
     _turn("ray", "Ray", {**GOOD, "teased": True})
     half = feelings.half_life_minutes()
     start = aff.load("ray")["feelings"]["playful"]
     assert start > 0
 
     for laps, expected in ((1, start / 2), (2, start / 4), (3, start / 8)):
-        # load() hands back the cached object, so drop it between measurements
-        # or each lap compounds on the last one's fade.
+        # load() returns the cached object, so drop it between measurements or
+        # each lap compounds on the last one's fade.
         aff.invalidate()
         record = aff.load("ray")
         ago = time.time() - half * 60 * laps
@@ -142,7 +134,7 @@ def test_turning_feelings_off_means_they_stop_moving(monkeypatch):
     assert aff.load("ray")["feelings"] == feelings.blank()
 
 
-# --- how the panel sees it ---------------------------------------------------
+# how the panel sees it
 
 def test_the_prompt_gets_words_and_not_the_numbers():
     """One tease is not worth telling the model about. A conversation is."""
@@ -154,8 +146,7 @@ def test_the_prompt_gets_words_and_not_the_numbers():
     text = feelings.render_for_prompt([aff.load("ray")])
     assert "playful" in text, f"a real mood should reach her: {text}"
     assert text.count("\n") <= 1, "one line per person, plus at most a tone line"
-    # At most two, whatever else is going on. All eight at once turns her into a
-    # mood dashboard instead of a person.
+    # At most two: all eight at once is a mood dashboard, not a person.
     assert len(re.findall(r"\(\d+\)", text)) == 2, text
     assert re.fullmatch(r"- Ray: right now, talking to them, you feel .+", text.split("\n")[0])
 
@@ -171,7 +162,7 @@ def test_the_label_reads_as_a_mood_not_a_score():
     assert feelings.label(-90) == "rough"
 
 
-# --- host edits --------------------------------------------------------------
+# host edits
 
 def test_the_panel_can_set_a_feeling_by_hand():
     _turn("ray", "Ray", GOOD)
@@ -188,7 +179,7 @@ def test_a_refused_feeling_is_not_half_applied(bad):
     assert aff.load("ray")["feelings"] == before
 
 
-# --- warmth: slow, real, and hard to shake -----------------------------------
+# warmth: slow, real, and hard to shake
 
 def test_warmth_rises_when_he_is_kind():
     before = aff.load("ray")["warmth"] if (aff.AFFINITY_DIR / "ray.json").exists() else 0.0
@@ -237,7 +228,7 @@ def test_the_history_says_why_in_words():
     assert entry["ts"]
 
 
-# --- the bond ----------------------------------------------------------------
+# the bond
 
 def test_a_rough_mood_is_read_as_rough():
     assert bond.mood_of("honestly i'm so tired of everything") < 0
@@ -247,8 +238,6 @@ def test_a_rough_mood_is_read_as_rough():
 
 
 def test_being_told_to_stop_asking_is_respected():
-    """If he says he is fine, she believes him. Asking again after that is the
-    one thing that would make this creepy."""
     assert bond.BRUSHED_OFF.search("i'm fine, don't worry")
     assert bond.STILL_ROUGH.search("still tired honestly")
 
@@ -304,8 +293,6 @@ def test_closeness_grows_with_time_and_shrinks_when_he_is_brutal():
 
 
 def test_the_bond_finds_its_owner_by_the_slug_it_stamped():
-    """Nobody stores a Discord id on an affinity record, so it has to be found by
-    the name it wrote down the first time he talked to her."""
     _turn("ray", "Ray", GOOD, owner_id="1", is_owner=True)
     _turn("kim", "Kim", GOOD)
     found = aff.owner_bond()
@@ -358,7 +345,7 @@ def test_the_summary_reports_minutes_left():
     assert shown["moodWord"]
 
 
-# --- the two travel together -------------------------------------------------
+# the two travel together
 
 def test_someone_she_cares_about_sounding_bad_worries_her():
     _turn("ray", "Ray", GOOD, their_mood=-60)

@@ -1,23 +1,18 @@
-"""Her picture and her display name.
-
-Both are pushed through the bot loop for the same reason as presence - the panel
-thread does not own the Discord connection. The image file is the whole truth:
-no "portrait set" flag to drift, if the file is gone she has no picture."""
-
 from __future__ import annotations
 
 import asyncio
 import base64
 import binascii
+import re
 import threading
 from pathlib import Path
 
-from .config import ROOT, bot_name, config
+from .config import PERSONA_FILE, ROOT, SKILLS_DIR, bot_name, config
 
 TEMPLATE_DIR = Path(__file__).parent / "dashboard" / "templates"
 
-# Discord accepts these four and nothing else. Kept as a map so the extension we
-# save under is the one we verified, rather than whatever the browser claimed.
+# Discord accepts these four and nothing else, as a map so the extension saved is
+# the verified one rather than whatever the browser claimed.
 ALLOWED = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -33,32 +28,6 @@ _client = None
 
 
 def attach(loop, client) -> None:
-    """Remember the loop and client, so a dashboard request can push an edit."""
-    global _loop, _client
-    with _lock:
-        _loop, _client = loop, client
-
-
-def detach() -> None:
-    """Forget them. Used on shutdown and between tests."""
-    global _loop, _client
-    with _lock:
-        _loop, _client = None, None
-
-
-def portrait_path() -> Path:
-    """Where her picture is written. Extension chosen by what she uploaded."""
-    saved = config.get("bot", {}).get("portraitFile") or "portrait.png"
-    return TEMPLATE_DIR / Path(saved).name
-
-
-def find_portrait() -> Path | None:
-    """Her picture if there is one, else None.
-
-    Checks the configured name first, then any allowed extension beside it - so
-    uploading a PNG then a JPEG leaves exactly one file, not a pile of orphans
-    for the panel to choose between.
-    """
     target = portrait_path()
     if target.exists():
         return target
@@ -71,12 +40,6 @@ def find_portrait() -> Path | None:
 
 
 def _sniff(blob: bytes) -> str | None:
-    """The MIME type from the file's own bytes, or None if it isn't an image.
-
-    Checked against magic bytes rather than trusting the extension or the
-    Content-Type the browser offered, because this value ends up being uploaded
-    to Discord as an avatar.
-    """
     if blob.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if blob.startswith(b"\xff\xd8\xff"):
@@ -89,13 +52,6 @@ def _sniff(blob: bytes) -> str | None:
 
 
 def save_portrait(data_url: str) -> tuple[Path | None, str]:
-    """Decode and store her picture. Returns (path, why-not).
-
-    Every other portrait in the app is a path the browser draws; this is the one
-    place bytes arrive from outside, so the size cap, the type check and the
-    "not actually an image" case all have to be refused here rather than left to
-    a 400 from Discord later.
-    """
     raw = str(data_url or "").strip()
     if raw.startswith("data:"):
         raw = raw.split(",", 1)[1] if "," in raw else ""
@@ -118,8 +74,8 @@ def save_portrait(data_url: str) -> tuple[Path | None, str]:
     target = portrait_path().with_suffix(ALLOWED[mime])
     target.write_bytes(blob)
 
-    # Drop whatever she had before, whatever it was called. A stale image left
-    # beside the new one is how the panel ends up showing the wrong face.
+    # Drop whatever she had before. A stale image beside the new one is how the
+    # panel shows the wrong face.
     for ext in set(ALLOWED.values()) | {portrait_path().suffix}:
         other = target.with_suffix(ext)
         if other != target and other.exists():
@@ -128,36 +84,13 @@ def save_portrait(data_url: str) -> tuple[Path | None, str]:
             except OSError:
                 pass
 
-    # Remember the name so the panel can find it next boot without guessing.
+    # Remember the name so the panel finds it next boot without guessing.
     config.setdefault("bot", {})["portraitFile"] = target.name
     _patch_bot("portraitFile", target.name)
     return target, "saved"
 
 
 def _patch_bot(key: str, value) -> None:
-    """Write one `bot.*` key into config.json, leaving the rest alone."""
-    from .config import _patch_config
-
-    _patch_config("bot", key, value)
-
-
-def has_portrait() -> bool:
-    return find_portrait() is not None
-
-
-# --- the Discord side --------------------------------------------------------
-#
-# Both pushes below return (ok, why) rather than raising: the panel must be able
-# to say "saved on disk, but Discord refused" instead of a 500 with a traceback.
-
-
-def push_avatar() -> tuple[bool, str]:
-    """Make the saved picture her Discord avatar, right now.
-
-    Scheduled onto the bot's loop for the same reason the presence push is.
-    Returns "saved but not pushed" rather than failing when the bot is not
-    connected - that is the normal state during first-run setup.
-    """
     with _lock:
         loop, client = _loop, _client
     if loop is None or client is None:
@@ -185,13 +118,6 @@ def push_avatar() -> tuple[bool, str]:
 
 
 def push_display_name() -> tuple[bool, str]:
-    """Set her Discord username to match the name she was given.
-
-    Deliberately separate from the in-repo name and reported separately: this is
-    an application-level change. Every server this bot token is in sees the new
-    username at once, and it is a privileged write - so a refusal is reported,
-    never worked around.
-    """
     with _lock:
         loop, client = _loop, _client
     if loop is None or client is None or client.user is None:
@@ -206,6 +132,46 @@ def push_display_name() -> tuple[bool, str]:
     except Exception as exc:
         return False, f"Discord refused the name: {type(exc).__name__}: {exc}"
     return True, f"her Discord username is now {wanted}"
+
+
+def rename_in_files(old: str, new: str) -> list[str]:
+    old = str(old or "").strip()
+    new = str(new or "").strip()
+    if not old or not new or old == new:
+        return []
+
+    # Two chars is the floor: a one-letter name would rewrite half the file.
+    if len(old) < 2:
+        return []
+
+    targets = [PERSONA_FILE, *sorted(SKILLS_DIR.glob("*.md"))]
+    # Capitalised form, when it differs - "yuyu" -> "Yuyu".
+    forms = {old: new}
+    titled = old[:1].upper() + old[1:]
+    if titled != old:
+        forms[titled] = new[:1].upper() + new[1:]
+
+    changed: list[str] = []
+    for path in targets:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        updated = text
+        for before, after in forms.items():
+            # \b does not work around a name with a space, so this uses a lookaround
+            # on word characters.
+            pattern = re.compile(
+                rf"(?<![\w]){re.escape(before)}(?![\w])"
+            )
+            updated = pattern.sub(after, updated)
+        if updated != text:
+            try:
+                path.write_text(updated, encoding="utf-8")
+            except OSError:
+                continue
+            changed.append(path.name)
+    return changed
 
 
 def connected() -> bool:
@@ -231,15 +197,14 @@ def setup_state() -> dict:
 
     providers = [p for p in (config["model"].get("providers") or [])
                  if isinstance(p, dict) and p.get("id")]
-    # An entry with no key behind it is a shape, not a working model: the file
-    # ships twenty free model ids and none of them has a key until someone adds
-    # one, so counting entries would report "configured" on a fresh clone.
+    # An entry with no key is a shape, not a model: the file ships twenty free
+    # ids, so counting entries would report "configured" on a fresh clone.
     keyed = [p for p in providers if provider_key_names(p)]
     return {
         "name": bot_name(),
         "hasPortrait": has_portrait(),
         "providers": len(providers),
         "hasWorkingModel": bool(keyed),
-        # The first entry with a key is the one she would actually talk on.
+        # The first entry with a key is the one she would talk on.
         "workingModel": str(keyed[0].get("model") or keyed[0].get("id")) if keyed else "",
     }

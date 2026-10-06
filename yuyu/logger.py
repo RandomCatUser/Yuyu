@@ -43,9 +43,8 @@ def clear_logs() -> None:
 
 def install(level: int = logging.INFO) -> logging.Logger:
     """Route stdlib logging (and print) into the buffer as well as the console."""
-    # The bot's display name can contain characters the Windows console codec
-    # (cp1252) cannot encode, which turns every log line into a
-    # UnicodeEncodeError. Force UTF-8 and never let a log line kill the process.
+    # Her name can hold characters cp1252 cannot encode, turning every log line
+    # into a UnicodeEncodeError. Force UTF-8; never let logging kill the process.
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")
@@ -62,7 +61,7 @@ def install(level: int = logging.INFO) -> logging.Logger:
     root.addHandler(console)
     root.addHandler(_RingHandler())
 
-    # A tiny helper so `log("...")` works everywhere without importing logging.
+    # A tiny helper so `log(...)` works without importing logging.
     class _Log:
         def __call__(self, message: str) -> None:
             root.info(message)

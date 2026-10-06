@@ -1,9 +1,3 @@
-"""Live behaviour against a configured model provider.
-
-    python -m pytest tests/test_live.py -q
-
-Set LLM_LIVE_TESTS=1 to opt in; live checks may use provider quota.
-"""
 
 from __future__ import annotations
 
@@ -108,7 +102,7 @@ def _respond(text: str) -> str:
     )
 
 
-# --- the API itself --------------------------------------------------------
+# the API itself
 
 def test_api_returns_text():
     out = _await(
@@ -137,7 +131,7 @@ def test_json_mode_works():
     assert isinstance(data, dict) and data.get("ok") is True
 
 
-# --- persona ---------------------------------------------------------------
+# persona
 
 def test_she_chats_like_a_friend():
     out = _respond("yuyu what's up, bored")
@@ -161,7 +155,7 @@ def test_she_stays_short_by_default():
     assert len(out.split()) <= 60, f"too long for a greeting: {out[:200]}"
 
 
-# --- cards -----------------------------------------------------------------
+# cards
 
 def test_a_comparison_can_produce_a_card():
     out = _respond(
@@ -179,7 +173,7 @@ def test_a_comparison_can_produce_a_card():
     assert not any("<card" in p for p in parts), "raw card markup leaked"
 
 
-# --- memory ----------------------------------------------------------------
+# memory
 
 def test_extraction_returns_durable_facts():
     data = _await(

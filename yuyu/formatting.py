@@ -1,7 +1,3 @@
-"""Output formatting: <card> markup into Discord embeds.
-
-Her text stays plain; only the <card> becomes an embed, one per reply, never
-around a casual line."""
 
 from __future__ import annotations
 
@@ -36,7 +32,7 @@ def _color(value: str | None) -> int:
     if not value:
         return COLORS["blurple"]
     text = str(value).strip()
-    # Discord colours run 0x000000-0xFFFFFF, i.e. up to 8 decimal digits.
+    # Discord colours run 0x000000-0xFFFFFF: up to 8 decimal digits.
     if text.isdigit():
         number = int(text)
         if 0 <= number <= 0xFFFFFF:
@@ -116,7 +112,7 @@ def looks_structured(text: str) -> bool:
     return bullets >= 4 or headers >= 2
 
 
-# --- command embeds --------------------------------------------------------
+# command embeds
 
 def _base(title: str | None, description: str | None, color: str, footer: str) -> discord.Embed:
     embed = discord.Embed(color=_color(color), timestamp=discord.utils.utcnow())

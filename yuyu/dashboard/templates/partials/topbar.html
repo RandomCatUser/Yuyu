@@ -1,0 +1,30 @@
+<!-- the header: brand, crush pill, model picker. -->
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-in">
+      <button class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+        <svg width="17" height="17" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M2 4.5h14M2 9h14M2 13.5h14" />
+        </svg>
+      </button>
+      <div class="brand">
+        <span class="brandmark" aria-hidden="true">
+          <span id="brandface">Y</span>
+          <img id="brandimg" src="/portrait" alt="" decoding="async" onerror="this.remove()" />
+        </span>
+        <span class="brand-text">
+          <b id="brandname">Yuyu</b>
+          <small>control</small>
+        </span>
+      </div>
+      <div class="topbar-right">
+        <span class="chip" id="crushpill"></span>
+        <div class="model-pick">
+          <select id="modelsel" aria-label="model to use"></select>
+          <button class="btn btn-primary btn-sm" id="modelgo">Use</button>
+        </div>
+      </div>
+    </div>
+  </header>

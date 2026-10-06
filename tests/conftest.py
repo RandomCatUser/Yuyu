@@ -1,5 +1,3 @@
-"""Shared pytest fixtures / path setup for the ported suite."""
-
 from __future__ import annotations
 
 import sys
@@ -15,16 +13,6 @@ if str(ROOT) not in sys.path:
 
 @pytest.fixture(autouse=True)
 def _keep_usage_history_out_of_the_real_folder(tmp_path_factory):
-    """Send usage recording to a throwaway folder for the whole run.
-
-    Any test that reaches the provider helpers writes one line of token
-    accounting per call, because that is what the helpers now do. Left alone, a
-    passing run would drop fake rows into the real usage/*.jsonl - zeros from
-    mocked responses, every one of them unpriced - which the dashboard would
-    then carry forever as unpriced calls and a cost total stuck at a floor.
-
-    Done here rather than per test file so a new test cannot reintroduce it.
-    """
     from yuyu import usage
 
     throwaway = tmp_path_factory.mktemp("usage-history")

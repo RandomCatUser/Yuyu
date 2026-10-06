@@ -1,8 +1,3 @@
-"""Per-person memory as plain markdown in memory/<slug>.md.
-
-Six sections (Details, Notes, Likes, Dislikes, Projects, People) so a fact lands
-somewhere meaningful. Plain markdown on purpose: open one, edit it, delete it, and
-the next message picks the change up."""
 
 from __future__ import annotations
 
@@ -35,11 +30,6 @@ _FIRST_PERSON = re.compile(
 
 
 def normalize_fact(raw: str) -> str:
-    """Turn a raw extracted sentence into a short standalone fact.
-
-    "i just got promoted to shift lead" -> "Just got promoted to shift lead".
-    Idempotent, so repeated rewrites do not keep eating the front of a fact.
-    """
     text = re.sub(r"^[-*]\s*", "", str(raw or "")).strip()
     text = _FIRST_PERSON.sub("", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -134,12 +124,6 @@ def _meta(slug: str, person: dict, existing: dict | None) -> tuple[str, str, str
 
 
 def _ensure_dir() -> None:
-    """Guarantee memory/ exists before a write.
-
-    The folder is normally created at boot, but if it is ever missing the write
-    raises FileNotFoundError and the fact is dropped on the floor - silently,
-    mid-reply, for every person. Cheap to prevent, expensive to notice late.
-    """
     MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
 

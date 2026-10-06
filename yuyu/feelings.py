@@ -1,7 +1,3 @@
-"""How she feels right now - the fast numbers.
-
-Warmth and the crush take weeks; these move a few points per message and decay on
-their own over the next hour or two. Injected into the prompt and editable by hand."""
 
 from __future__ import annotations
 
@@ -11,8 +7,8 @@ from datetime import datetime, timezone
 from .config import config
 from .util import clamp
 
-# Kept short on purpose. A long list of feelings mostly produces mush - these
-# eight cover what actually happens to a person over a conversation.
+# Kept short on purpose: a long list produces mush. These eight cover what
+# actually happens to a person over a conversation.
 FEELINGS = ("happy", "calm", "playful", "excited", "worried", "sad", "annoyed", "tired")
 
 BRIGHT = ("happy", "excited", "playful")
@@ -30,7 +26,7 @@ WORDS = {
     "tired": "tired",
 }
 
-# Below this a feeling is noise and gets left out of the prompt entirely.
+# Below this a feeling is noise and stays out of the prompt.
 NOTABLE = 22.0
 
 
@@ -46,56 +42,6 @@ def _setting(key: str, fallback: float) -> float:
 
 
 def half_life_minutes() -> float:
-    """How long one feeling takes to halve. Long enough to carry a conversation."""
-    return max(1.0, _setting("feelingHalfLifeMinutes", 120.0))
-
-
-def enabled() -> bool:
-    return config["affinity"].get("feelings", True) is not False
-
-
-def _stamp() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _read_moment(record: dict) -> float:
-    try:
-        return datetime.fromisoformat(record["feelingsAt"]).timestamp()
-    except (KeyError, TypeError, ValueError):
-        return time.time()
-
-
-def _clamp_all(feelings: dict) -> dict:
-    for name in FEELINGS:
-        feelings[name] = clamp(float(feelings.get(name) or 0), 0, 100)
-    # Over a list, not the dict itself: deleting while iterating a dict raises.
-    for name in [key for key in feelings if key not in FEELINGS]:
-        del feelings[name]
-    return feelings
-
-
-def normalise(record: dict) -> dict:
-    """Make sure the record has a usable feelings block, whatever is on disk."""
-    feelings = record.get("feelings")
-    if not isinstance(feelings, dict):
-        feelings = blank()
-    for name in FEELINGS:
-        try:
-            feelings[name] = float(feelings.get(name) or 0)
-        except (TypeError, ValueError):
-            feelings[name] = 0.0
-    _clamp_all(feelings)
-    record["feelings"] = feelings
-    return feelings
-
-
-def decay(record: dict, now: float | None = None) -> dict:
-    """Fade the feelings toward neutral, on a half-life.
-
-    Done on read like the other decay, so a record nobody has touched still
-    reports what she would actually feel right now rather than what she felt
-    when it was written.
-    """
     if not enabled() or not record.get("feelings"):
         return record
     now = now if now is not None else time.time()
@@ -116,12 +62,6 @@ def _bump(feelings: dict, name: str, amount: float) -> None:
 
 
 def apply(record: dict, sig: dict, their_mood: float = 0.0) -> dict:
-    """Move her feelings from one turn.
-
-    Small steps on purpose. A single good message should not leave her delighted
-    for the rest of the day - that reads as a bot on a high - while a run of
-    bad ones should stack, because that is how being ignored actually lands.
-    """
     if not enabled():
         return record
     feelings = normalise(record)
@@ -160,15 +100,14 @@ def apply(record: dict, sig: dict, their_mood: float = 0.0) -> dict:
     if sig.get("directReply"):
         _bump(feelings, "happy", 3)
 
-    # Someone she cares about sounding bad is its own thing. It is not her
-    # mood - it is what she feels for them, which is why it lands softer.
+    # Someone she cares about sounding bad is its own thing: what she feels for
+    # them, not her mood, which is why it lands softer.
     if their_mood < -25:
         _bump(feelings, "worried", min(16, abs(their_mood) * 0.25))
     elif their_mood > 30:
         _bump(feelings, "happy", 4)
 
-    # Standing in her own light company reads as flat, so let it top up on its
-    # own between the bigger things.
+    # Standing in her own light company reads as flat, so it tops itself up.
     _bump(feelings, "calm", 2)
 
     record["feelings"] = feelings

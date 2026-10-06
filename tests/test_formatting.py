@@ -1,4 +1,3 @@
-"""Card parsing, embed limits, and the sticker picker."""
 
 from __future__ import annotations
 
@@ -13,7 +12,7 @@ def embed_dict(embed):
     return embed.to_dict()
 
 
-# --- card parsing ----------------------------------------------------------
+# card parsing
 
 def test_plain_text_produces_no_embeds():
     parts, embeds = fmt.parse_reply("yeah that's brutal, did they at least bump the pay")
@@ -52,7 +51,7 @@ def test_unterminated_card_is_not_swallowed():
 
 
 def test_numeric_colours_resolve():
-    # 16711680 is 8 digits (0xFF0000); a 7-digit cap silently broke colours.
+    # 16711680 is 8 digits (0xFF0000); a 7-digit cap broke colours silently.
     assert embed_dict(fmt.parse_reply('<card color="16711680">x</card>').__getitem__(1)[0])["color"] == 16711680
     assert embed_dict(fmt.parse_reply('<card color="16777215">x</card>').__getitem__(1)[0])["color"] == 0xFFFFFF
     assert embed_dict(fmt.parse_reply('<card color="green">x</card>').__getitem__(1)[0])["color"] == 0x57F287
@@ -93,7 +92,7 @@ def test_looks_structured():
     assert fmt.looks_structured('<card title="x">y</card>')
 
 
-# --- stickers --------------------------------------------------------------
+# stickers
 
 @pytest.fixture
 def _sticker_files():
@@ -140,11 +139,10 @@ def test_missing_files_are_dropped_from_the_set():
     assert all(s["file"] in stk.list_images() for s in data["images"]), "a typo must not break sending"
 
 
-# --- emoji never reach the channel -----------------------------------------
+# emoji never reach the channel
 #
-# Sticker images carry the visual. Emoji in her replies were dropped by
-# request - both the ones the model invents and the sticker-emoji fallback that
-# used to be appended after the text.
+# Sticker images carry the visual. Emoji were dropped by request: both the
+# invented ones and the sticker-emoji fallback.
 
 def test_model_emoji_are_stripped_from_replies():
     from yuyu.chat import post_process
@@ -179,7 +177,7 @@ def test_normal_punctuation_and_accents_survive():
 
 
 def test_reply_path_applies_the_strip():
-    # The wiring, not just the helper: reply text flows through post_process.
+    # The wiring, not just the helper: replies flow through post_process.
     from yuyu.chat import post_process
 
     assert "\U0001F600" not in post_process("good morning \U0001F600")
