@@ -50,11 +50,13 @@ def name_patterns() -> tuple:
 
 
 def acquire_instance_lock() -> bool:
+   
     global _LOCK_FD
     try:
         fd = os.open(ROOT / ".yuyu.lock", os.O_RDWR | os.O_CREAT, 0o644)
     except OSError:
-        # A permissions problem must not make her mute, so boot anyway.
+        # If the lock cannot be taken at all, still let the bot boot - a
+        # permissions problem should not make her mute.
         return True
     try:
         os.ftruncate(fd, 0)
@@ -81,9 +83,14 @@ def build_bot() -> discord.Client:
     intents.members = False
 
     client = discord.Client(intents=intents)
-    # Name at the start of a line counts; elsewhere only if configured.
-    # Built per name, not once here: the wizard can rename her mid-session
-    # and a frozen regex would keep matching the old name.
+    # Trigger patterns belong to the bot: mentioning her by name at the start
+    # of a line counts, elsewhere only if configured.
+    #
+    # Built through name_patterns() rather than once here, because the setup
+    # wizard can rename her while this client is already connected - a regex
+    # frozen at startup would keep matching the old name and she would go deaf
+    # to the new one. The cache is keyed on the name, so this stays one compile
+    # per rename rather than one per message.
     def detect_trigger(message) -> str | None:
         name_re, name_start_re = name_patterns()
         if message.guild is None:
@@ -98,7 +105,7 @@ def build_bot() -> discord.Client:
         if config["behavior"]["respondToNameAnywhere"] and name_re.search(message.content or ""):
             return "mention"
         if config["behavior"]["respondInGuildsWithoutMention"] and (message.content or "").rstrip().endswith("?"):
-            # An ambient question is addressed to nobody in particular.
+            # An ambient question is not addressed to anyone in particular.
             return "ambient"
         return None
 
@@ -106,13 +113,16 @@ def build_bot() -> discord.Client:
     async def on_ready():
         me = client.user
         log(f'[ready] {me} online as "{bot_name()}"')
-        # Attach both first: the panel's first snapshot is built from them.
+        # Attach both first: the server list, the presence push and the
+        # dashboard all need somewhere to hand their work, and the panel is
+        # about to start serving a snapshot built from them.
         loop = asyncio.get_running_loop()
         guilds.attach(loop, client)
         guilds.update(client)
         presence.attach(loop, client)
-        # Same loop, same reason: `client.user.edit()` is unsafe off the
-        # event loop, which is where the wizard runs.
+        # Same loop, same reason: the setup wizard pushes her avatar and username
+        # through here, and `client.user.edit()` is not safe from the panel's
+        # Flask thread.
         identity.attach(loop, client)
         await presence.refresh(client, force=True)
         if config["emoji"]["autoDiscoverServerEmoji"]:
@@ -138,7 +148,8 @@ def build_bot() -> discord.Client:
     @client.event
     async def on_guild_create(guild):
         guilds.update(client)
-        # Her presence shows the server count, so a join is a reason to re-send.
+        # The server count is a placeholder in her presence, so a new server is
+        # a reason to re-send it rather than wait for somebody to talk.
         await presence.refresh(client, force=True)
         log(f"[guild] joined {guild.name} - now in {len(client.guilds)} server(s)")
         if config["emoji"]["autoDiscoverServerEmoji"]:
@@ -147,7 +158,8 @@ def build_bot() -> discord.Client:
 
     @client.event
     async def on_guild_remove(guild):
-        # Fires for a kick and for the panel's Leave button alike.
+        # Fires for both "someone kicked her" and the dashboard's own Leave
+        # button, so the list stays honest either way.
         guilds.update(client)
         await presence.refresh(client, force=True)
         log(f"[guild] left {guild.name} - now in {len(client.guilds)} server(s)")
@@ -190,8 +202,9 @@ def build_bot() -> discord.Client:
     async def on_error(event, *args, **kwargs):
         import traceback
 
-        # discord.py passes the event name first and the exception last; getting
-        # this wrong logs "error in str" and hides the cause.
+        # discord.py passes the event *name* here and the real exception as the
+        # last positional argument. Without this the handler logs "error in str"
+        # and hides the actual cause.
         name = event if isinstance(event, str) else type(event).__name__
         exc = args[-1] if args else None
         detail = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)) if exc else "no exception passed"
@@ -202,10 +215,12 @@ def build_bot() -> discord.Client:
 
 async def _handle_message(client, message, detect_trigger, router, log_message, reply,
                           is_busy, config):
-    # Recorded either way: quiet is not the same as forgetting.
+    # Recorded either way: the line still enters the conversation buffer and
+    # they still get a memory file. Being quiet is not the same as forgetting.
     log_message(message)
 
-    # The per-person switch: no answers, no commands, no reactions.
+    # The per-person switch. No answers, no command replies, no reactions -
+    # she simply has nothing to say to them right now.
     if mute.is_muted(slug_for(message.author)):
         return
 
@@ -224,7 +239,9 @@ async def _handle_message(client, message, detect_trigger, router, log_message, 
         await asyncio.sleep(0.4 + random_delay())
 
     if trigger == "name-start":
-        # Re-read per message: a stale pattern would leave the old name in the reply.
+        # Re-read here rather than passing the pattern down: the name can change
+        # between this message and the next, and stripping with a stale pattern
+        # would leave the old name sitting in the reply.
         text = name_patterns()[1].sub("", message.content or "").strip()
     else:
         text = None
@@ -241,8 +258,10 @@ async def _handle_message(client, message, detect_trigger, router, log_message, 
     except Exception as exc:
         import traceback
 
-        # The channel only ever gets `public`; a raw traceback there would
-        # tell the server how she is built.
+        # Full detail goes to the log. The channel only ever gets `public`,
+        # which is written in her voice and names no config keys or files -
+        # a raw "recent() missing 1 required positional argument" reads like a
+        # crash dump and tells the server how she is built.
         log(f"[chat] failed for {message.author}: {traceback.format_exc()}")
         public = getattr(exc, "public", None) or "lost the plot for a sec, say that again?"
         try:
@@ -250,8 +269,9 @@ async def _handle_message(client, message, detect_trigger, router, log_message, 
         except Exception:
             pass
     else:
-        # She answered, so she may be busy. Own try: a presence hiccup must
-        # never become a message in the channel.
+        # She actually answered, so her profile may say she is busy. Its own
+        # try: a presence hiccup must never turn into a message in the channel.
+        # The push is throttled and skipped when nothing changed.
         presence.note_activity()
         try:
             await presence.refresh(client)
@@ -290,12 +310,13 @@ def _start_dashboard_thread() -> None:
 
 
 async def _run_forever(client: discord.Client, token: str) -> None:
+ 
     delay = 3.0
     attempt = 0
     while True:
         try:
             await client.start(token)
-            # start() returns only once the connection is gone for good.
+            # start() only returns once the connection is gone for good.
             log("[bot] disconnected")
         except discord.LoginFailure:
             raise
@@ -308,6 +329,7 @@ async def _run_forever(client: discord.Client, token: str) -> None:
 
 
 def run_setup_wizard() -> int:
+   
     print("[setup] opening the panel on its own - she is NOT connected to Discord.")
     print("        Her avatar and username cannot be pushed until she has a token,")
     print("        but everything you enter here is saved and used on next start.\n")
@@ -324,8 +346,8 @@ def main() -> int:
     create_default_persona()
     migrate_legacy_dirs()  # sync: it only touches the filesystem
 
-    # Checked before the lock: the wizard is a panel, so a running bot must
-    # neither block it nor be started by it.
+    # Checked before the lock: the wizard is a panel, not a bot, so it must not
+    # be turned away by a running instance - and it must not be able to start one.
     if "--setup" in sys.argv[1:] or "setup" in sys.argv[1:]:
         return run_setup_wizard()
 

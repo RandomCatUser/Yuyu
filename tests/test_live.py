@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import asyncio
@@ -45,7 +46,6 @@ class FakeGuild:
 
 
 class FakeMessage:
-    """Enough of a discord.py Message for prompt assembly and reply plumbing."""
 
     def __init__(self, text: str, author: str = "Probe"):
         self.content = text
@@ -83,7 +83,6 @@ def _clean():
 
 
 def _await(coro):
-    """The API is async (so it never blocks the bot's event loop); run it here."""
     return asyncio.run(coro)
 
 
@@ -159,7 +158,6 @@ def test_she_stays_short_by_default():
 
 def test_a_comparison_can_produce_a_card():
     out = _respond(
-        "yuyu compare postgres, mysql and sqlite for me, keep it tight: what's good for what"
     )
     parts, embeds = parse_reply(out)
     if not embeds:

@@ -106,7 +106,6 @@ def test_a_person_the_tests_deleted_comes_back_byte_for_byte():
 
 
 def test_a_newcomer_who_arrived_mid_run_stays_off_the_restore_list():
-    """`people` only knows what existed at setup, so a new speaker is untouched."""
     path = MEMORY_DIR / "joined-mid-run.md"
     path.write_bytes(b"")
     try:
