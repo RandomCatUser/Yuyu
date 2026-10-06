@@ -133,7 +133,6 @@ def test_a_provider_that_sends_no_usage_still_records_the_call(one_provider):
 
 
 def test_the_session_fixture_points_recording_somewhere_other_than_disk(one_provider):
-    """Guards the redirect itself, so a broken fixture fails loudly here."""
     import yuyu.config as config_mod
 
     assert usage.USAGE_DIR != config_mod.USAGE_DIR, (
