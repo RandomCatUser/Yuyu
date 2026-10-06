@@ -1,0 +1,24 @@
+# Who reviews what. Everything defaults to the repo owner rather than being
+# left unowned - an unowned path still needs a reviewer, it just does not fail
+# when the owner is unavailable.
+
+*                               @RandomCatUser
+
+# The surfaces where a mistake is silent rather than loud. A persona edit that
+# does not parse still starts; a provider failover bug just answers with the
+# wrong model and nobody notices until someone reads the logs.
+/yuyu/providers.py               @RandomCatUser
+/yuyu/chat.py                    @RandomCatUser
+/yuyu/config.py                  @RandomCatUser
+/config.json                     @RandomCatUser
+/.env.example                    @RandomCatUser
+
+# Holds real people's data. Needs a deliberate second look.
+/memory/                         @RandomCatUser
+/private/                        @RandomCatUser
+/yuyu/memory.py                  @RandomCatUser
+/yuyu/reset.py                   @RandomCatUser
+
+# CI and supply chain.
+/.github/                        @RandomCatUser
+/requirements*.txt               @RandomCatUser

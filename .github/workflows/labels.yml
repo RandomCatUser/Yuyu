@@ -1,0 +1,69 @@
+name: Labels
+
+# Creates and repairs the label set. Runs manually, and weekly, because labels
+# get deleted by hand and PRs then arrive unlabelled and unsearchable.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sundays 04:31 UTC.
+    - cron: '31 4 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync labels
+    runs-on: ubuntu-latest
+    permissions:
+      # github-script edits issues, so it needs issues: write. Not contents.
+      issues: write
+    steps:
+      - name: Create or update labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [
+              { name: 'bug', color: 'd73a4a', description: 'Something is broken' },
+              { name: 'enhancement', color: 'a2eeef', description: 'New behaviour or capability' },
+              { name: 'documentation', color: '0075ca', description: 'README, persona or skill docs' },
+              { name: 'question', color: 'd876e3', description: 'Needs an answer, not a change' },
+
+              { name: 'area: dashboard', color: '5319e7', description: 'Local control panel' },
+              { name: 'area: model providers', color: '0e8a16', description: 'Provider chain, failover, streaming' },
+              { name: 'area: memory', color: '1d76db', description: 'Per-person memory and context' },
+              { name: 'area: affect', color: 'b60205', description: 'Affinity, feelings, bond, crush' },
+              { name: 'area: reset & backups', color: 'c2e0c6', description: 'Wipe, backup and restore' },
+              { name: 'area: persona & skills', color: 'fef2c0', description: 'persona.md and skills/' },
+              { name: 'area: output & emoji', color: 'ffd33d', description: 'Cards, embeds, stickers, reactions' },
+              { name: 'area: bot core', color: '7057ff', description: 'main.py and command routing' },
+              { name: 'area: tests', color: 'c5def5', description: 'Test suite' },
+              { name: 'area: config', color: 'b9def9', description: 'config.json, config.py, .env.example' },
+
+              { name: 'dependencies', color: '0366d6', description: 'Dependency bump' },
+              { name: 'python', color: '3572A5', description: 'Python change' },
+              { name: 'github-actions', color: '2088ff', description: 'Workflow or action change' },
+              { name: 'ci', color: '0b7285', description: 'CI, workflows, or release plumbing' },
+              { name: 'security', color: 'b60205', description: 'Security-relevant change' },
+
+              { name: 'good first issue', color: '7057ff', description: 'Small, self-contained, good entry point' },
+              { name: 'help wanted', color: '159818', description: 'Nobody is working on this' },
+              { name: 'needs discussion', color: 'ededed', description: 'Shape is not settled yet' },
+            ];
+
+            for (const label of labels) {
+              // createLabel is already an upsert in the API: it updates the
+              // colour and description if the label exists.
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...label,
+                });
+              } catch (error) {
+                core.setFailed(`Failed on ${label.name}: ${error.message}`);
+                return;
+              }
+            }
+            core.info(`Synced ${labels.length} labels.`);

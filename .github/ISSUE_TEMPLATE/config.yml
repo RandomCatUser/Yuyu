@@ -1,0 +1,45 @@
+name: Config
+description: Something about setup, configuration or running the bot
+title: ''
+labels: ['question']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most setup answers are already in the README. The ones that come up most:
+
+        - **Bot connects but never replies** - re-check
+          **Privileged Gateway Intents → Message Content Intent**. Without it
+          Discord sends no message text.
+        - **Bot silent after a portal change** - **Reset Token**, then update
+          `.env`. That invalidates the old token.
+        - **Wrong model after a switch** - the provider chain is ordered, and
+          `model.default` only names the preferred entry. Everything after it
+          is a fallback.
+        - **Dashboard will not start** - it binds `127.0.0.1` only. There is no
+          password, so it refuses any other host on purpose.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      placeholder: |
+        I set `model.default` to `openrouter-2` and she still says she is running
+        the Gemini model. Is that expected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Relevant config
+      description: |
+        The relevant slice of `config.json`, with API key **values** removed.
+        The env var *names* are useful; the values are not.
+      render: json
+      placeholder: |
+        {
+          "model": { "default": "openrouter-2" }
+        }
+    validations:
+      required: false

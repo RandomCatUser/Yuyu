@@ -1,0 +1,72 @@
+name: Feature request
+description: Suggest new behaviour or a change to existing behaviour
+title: ''
+labels: ['enhancement', 'needs discussion']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project has one governing rule: **she is one of the friends in the
+        group chat, not an assistant.** Requests that keep that intact are much
+        more likely to land than requests that add assistant-shaped behaviour.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem
+      description: The situation you are in today that this would solve. Not the feature - the problem.
+      placeholder: |
+        When she fails over to a different model mid-conversation, she does not
+        say anything, and people notice the change in tone and think she is
+        being weird.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to happen instead
+      placeholder: |
+        Not a spec - a description of the behaviour you would want.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where this lives
+      options:
+        - Replies and conversation
+        - Model providers and failover
+        - Memory and recall
+        - Affect (affinity, feelings, bond, crush)
+        - Dashboard
+        - Reset and backups
+        - Persona or skills
+        - New command or skill file
+        - Repository / CI
+    validations:
+      required: true
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Would this change existing behaviour?
+      description: |
+        Personality and memory are the two areas where a change affects everyone
+        already running a bot, so it is worth being explicit.
+      options:
+        - 'No - purely additive, safe for existing installs'
+        - 'Yes - changes how she behaves by default'
+        - 'Yes - changes existing config or file formats'
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Including "just edit config.json" or "add a skills/*.md file", if that was close.
+    validations:
+      required: false

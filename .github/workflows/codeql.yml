@@ -1,0 +1,47 @@
+name: CodeQL
+
+# Static security analysis. Runs on the default branch, on PRs, and on a weekly
+# schedule - the schedule matters because new advisories land against code that
+# has not changed in months.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Sunday 03:17 UTC. Off the hour on purpose: everyone else's cron fires at
+    # :00 and GitHub queues them behind each other.
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required by the CodeQL action itself, not by this project's code.
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['python']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+          queries: security-and-quality
+
+      # No build step needed for Python - it is compiled on import. This step
+      # still runs so CodeQL can report from a warm cache.
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'

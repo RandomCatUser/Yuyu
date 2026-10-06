@@ -1,0 +1,86 @@
+name: Nightly
+
+# The slow lane. CI runs on every push and should take well under a minute;
+# this runs the parts that are too expensive or too flaky for that, on a timer
+# and against the default branch only.
+
+on:
+  schedule:
+    # 02:23 UTC daily.
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Run the opt-in live provider tests (spends API quota)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  full-suite:
+    name: Full suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Needed so the job can comment with the results.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
+
+      - name: Run the suite with durations
+        run: python -m pytest -q --durations=15
+
+      # Order-dependent failures pass locally and fail here, or the reverse.
+      # pytest-randomly is not a dependency of the project, so it is installed
+      # into the job only.
+      - name: Re-run in a random order to catch order dependence
+        run: |
+          python -m pip install pytest-randomly
+          python -m pytest -q
+
+  live-tests:
+    name: Live provider tests
+    # Only when explicitly asked, from the workflow_dispatch input. These spend
+    # real provider quota, so they are never on the timer.
+    if: github.event_name == 'workflow_dispatch' && inputs.live
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
+
+      # One provider key is enough - the failover chain is what is under test.
+      - name: Configure a single provider
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: cp .env.example .env && echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> .env
+
+      - name: Run the live checks
+        env:
+          LLM_LIVE_TESTS: '1'
+        run: python -m pytest tests/test_live.py -q -rs

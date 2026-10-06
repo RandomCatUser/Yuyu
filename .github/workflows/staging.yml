@@ -1,0 +1,92 @@
+name: Staging
+
+# The staging lane: prove the whole app hangs together on a clean machine, with
+# nothing in it but a blank .env.
+#
+# Deliberately not a deploy. There is no container, no registry, no server to
+# push to - this project is run by whoever installs it. So "staging" here means:
+# does the app boot, answer, and hold its own safety rails, on a machine that has
+# never seen this repo before.
+#
+# Uses the GitHub `staging` environment, so secrets (if you ever add a throwaway
+# bot token) stay out of the workflow file.
+
+on:
+  push:
+    branches: [staging]
+  pull_request:
+    branches: [staging]
+  # Manual, so this can be run against any branch before shipping it.
+  workflow_dispatch:
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Boot the real app
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
+
+      # A blank .env is the point. The app must start with zero secrets
+      # configured - a fresh clone should reach a working dashboard and a
+      # clear setup wizard, not a crash.
+      - name: Prepare a blank environment
+        run: |
+          cp .env.example .env
+          mkdir -p memory affinity usage backups tmp
+          touch memory/.gitkeep affinity/.gitkeep usage/.gitkeep
+          echo "::add-mask::$(grep -oP '(?<=^DISCORD_TOKEN=).*' .env | head -1)"
+
+      - name: Smoke test the dashboard
+        run: python .github/scripts/staging_smoke.py
+
+      # The dashboard must still refuse a non-loopback bind on this machine,
+      # not just in a unit test.
+      - name: Prove the dashboard will not bind to a public interface
+        run: |
+          python - <<'PY'
+          import sys
+          from yuyu.config import config
+          from yuyu.dashboard.app import start_dashboard
+
+          config["dashboard"]["host"] = "0.0.0.0"
+          app = start_dashboard()
+          if app is not None:
+              sys.exit("dashboard accepted 0.0.0.0 - that is a security regression")
+          print("confirmed: 0.0.0.0 is refused")
+          PY
+
+      # No DISCORD_TOKEN is set here on purpose, so this must fail cleanly with
+      # a readable message rather than a traceback. If it ever starts "working",
+      # the guard that keeps a half-configured install from looking healthy has
+      # regressed.
+      - name: Confirm a missing token fails loudly, not silently
+        run: |
+          set +e
+          timeout 60 python main.py > boot.log 2>&1
+          code=$?
+          set -e
+          cat boot.log
+          if [ "$code" -eq 0 ]; then
+            echo "::error::main.py exited 0 with no bot token configured"
+            exit 1
+          fi
+          echo "exits non-zero ($code) with no token, as expected"

@@ -1,0 +1,34 @@
+version: 2
+
+updates:
+  # Provider SDKs and Flask move fast, and this project talks to both.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    open-pull-requests-limit: 5
+    labels: [dependencies, python]
+    commit-message:
+      prefix: 'pip'
+    groups:
+      # One PR for the patch-level churn instead of six.
+      patch:
+        update-types: [patch]
+      minor:
+        update-types: [minor]
+
+  # The workflows in this repo use third-party actions, which is its own supply
+  # chain. Pinning matters more here than most.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+    open-pull-requests-limit: 5
+    labels: [dependencies, github-actions]
+    groups:
+      actions:
+        patterns: ['*']

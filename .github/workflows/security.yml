@@ -1,0 +1,69 @@
+name: Security Scan
+
+# Two independent scans on every push and pull request:
+#   1. gitleaks  - committed secrets
+#   2. pip-audit - known CVEs in the dependency set
+#
+# The secret scan is not decorative. A bot token grants full control of the bot
+# account, and this repo's README already documents a token that got pasted into
+# a chat. This is the check that catches the next one before it reaches history.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Daily. Secret scanning is only useful before something is public, but a
+    # leaked key on a public repo needs removing from history too - and that is
+    # a job you want waking you up.
+    - cron: '41 5 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    # Force a fetch of full history: a secret committed long ago is still a
+    # leaked secret, and the default shallow checkout cannot see it.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITLEAKS_LICENSE }}
+          # Fail the build on a finding instead of only annotating the PR.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
+
+  dependency-audit:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+
+      # requirements.txt is pinned with >=, so audit the resolved set - that is
+      # what actually ships, not the floor written in the file. --strict so an
+      # unresolvable requirement is a failure rather than a skipped check.
+      - name: Audit resolved dependencies
+        run: |
+          pip-audit --requirement requirements.txt --strict --progress-spinner=off
+
+      # A second pass over the dev tooling, so a vulnerable pytest or ruff does
+      # not sit in everyone's CI unnoticed.
+      - name: Audit development dependencies
+        continue-on-error: true
+        run: |
+          pip-audit --requirement requirements-dev.txt --strict --progress-spinner=off

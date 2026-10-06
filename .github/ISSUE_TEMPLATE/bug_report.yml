@@ -1,0 +1,81 @@
+name: Bug report
+description: Something is broken or behaving in a way that is not intended
+title: ''
+labels: ['bug', 'needs discussion']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing this. Two notes that save a round trip:
+
+        - **Never paste a bot token, an API key, or a memory file.** If one
+          appears below, delete the issue and **Reset Token** in the Developer
+          Portal first - a leaked token means full control of the bot account.
+        - The dashboard has a **Logs** tab showing the last 300 lines. Pasting
+          the relevant part is usually the fastest route to the cause.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+      placeholder: |
+        Expected: the bot replies in the channel it was mentioned in.
+        Actual:   nothing at all, no error, no reaction.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start the bot with `python main.py`
+        2. Type `yuyu what's up` in #general
+        3. Nothing comes back
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: From the terminal or the dashboard Logs tab. Wrap it in a code block.
+      render: shell
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the project
+      options:
+        - Replies and conversation
+        - Model providers and failover
+        - Memory and recall
+        - Affect (affinity, feelings, bond, crush)
+        - Dashboard
+        - Reset and backups
+        - Persona or skills
+        - Cards, stickers, emoji
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: '`python --version`. The project requires 3.11 or newer.'
+      placeholder: '3.12.4'
+    validations:
+      required: false
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or version
+      description: '`git rev-parse --short HEAD`, or which release you installed.'
+      placeholder: a1b2c3d
+    validations:
+      required: false
