@@ -1,5 +1,7 @@
 # Yuyu
 
+![Yuyu](Readme.jpg)
+
 A Discord bot that talks like a person, not a help desk. It reads the room, replies in
 whatever register the conversation is already in, remembers what people tell it, and can
 switch between configurable OpenAI-compatible model APIs when a provider fails or hits quota.

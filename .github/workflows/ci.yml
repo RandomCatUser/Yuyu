@@ -121,15 +121,26 @@ jobs:
           echo "::error::Offline test suite failed - see the job summary for failures grouped by cause."
           exit 1
 
-      # tests/test_dashboard.py syntax-checks the dashboard's inline module by
-      # shelling out to `node --check` and skips when node is absent. ubuntu
-      # runners have node preinstalled, so that check actually runs here rather
-      # than silently skipping.
-      - name: Confirm the node-gated check is running, not silently skipping
+      # Ten tests in tests/test_dashboard.py guard themselves with
+      # `if shutil.which("node") is None: pytest.skip(...)`. On a runner without
+      # node they skip, the run stays green, and nothing is actually tested -
+      # a silent pass is worse than a failure. Ubuntu runners ship node, so
+      # this asserts it is present rather than assuming.
+      #
+      # This does NOT re-run a test file on its own. An earlier version filtered
+      # with `-k script_parses` for a test the README mentions but which does not
+      # exist; pytest matched nothing, exited 5, and failed the step for a
+      # reason unrelated to what it was checking.
+      - name: Confirm node is present, so dashboard checks cannot silently skip
         if: always()
         run: |
-          node --version
-          python -m pytest tests/test_dashboard.py -q -k script_parses -rs
+          if ! command -v node >/dev/null 2>&1; then
+            echo "::error::node is missing - the 10 node-gated dashboard tests will skip instead of running."
+            exit 1
+          fi
+          NODE_VERSION="$(node --version)"
+          echo "node $NODE_VERSION present - the 10 node-gated dashboard tests will run"
+          printf '\n- Node-gated dashboard tests: **run** (%s)\n' "$NODE_VERSION" >> "$GITHUB_STEP_SUMMARY"
 
   boot-check:
     name: Boot (import + config validation)
