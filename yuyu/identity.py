@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import binascii
-import re
 import threading
 from pathlib import Path
 
@@ -11,8 +10,8 @@ from .config import PERSONA_FILE, ROOT, SKILLS_DIR, bot_name, config
 
 TEMPLATE_DIR = Path(__file__).parent / "dashboard" / "templates"
 
-# Discord accepts these four and nothing else, as a map so the extension saved is
-# the verified one rather than whatever the browser claimed.
+# Discord accepts these four and nothing else. Kept as a map so the extension we
+# save under is the one we verified, rather than whatever the browser claimed.
 ALLOWED = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -28,6 +27,24 @@ _client = None
 
 
 def attach(loop, client) -> None:
+    global _loop, _client
+    with _lock:
+        _loop, _client = loop, client
+
+
+def detach() -> None:
+    global _loop, _client
+    with _lock:
+        _loop, _client = None, None
+
+
+def portrait_path() -> Path:
+    saved = config.get("bot", {}).get("portraitFile") or "portrait.png"
+    return TEMPLATE_DIR / Path(saved).name
+
+
+def find_portrait() -> Path | None:
+
     target = portrait_path()
     if target.exists():
         return target
@@ -40,6 +57,7 @@ def attach(loop, client) -> None:
 
 
 def _sniff(blob: bytes) -> str | None:
+    
     if blob.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if blob.startswith(b"\xff\xd8\xff"):
@@ -52,6 +70,7 @@ def _sniff(blob: bytes) -> str | None:
 
 
 def save_portrait(data_url: str) -> tuple[Path | None, str]:
+    
     raw = str(data_url or "").strip()
     if raw.startswith("data:"):
         raw = raw.split(",", 1)[1] if "," in raw else ""
@@ -74,8 +93,8 @@ def save_portrait(data_url: str) -> tuple[Path | None, str]:
     target = portrait_path().with_suffix(ALLOWED[mime])
     target.write_bytes(blob)
 
-    # Drop whatever she had before. A stale image beside the new one is how the
-    # panel shows the wrong face.
+    # Drop whatever she had before, whatever it was called. A stale image left
+    # beside the new one is how the panel ends up showing the wrong face.
     for ext in set(ALLOWED.values()) | {portrait_path().suffix}:
         other = target.with_suffix(ext)
         if other != target and other.exists():
@@ -84,13 +103,30 @@ def save_portrait(data_url: str) -> tuple[Path | None, str]:
             except OSError:
                 pass
 
-    # Remember the name so the panel finds it next boot without guessing.
+    # Remember the name so the panel can find it next boot without guessing.
     config.setdefault("bot", {})["portraitFile"] = target.name
     _patch_bot("portraitFile", target.name)
     return target, "saved"
 
 
 def _patch_bot(key: str, value) -> None:
+    from .config import _patch_config
+
+    _patch_config("bot", key, value)
+
+
+def has_portrait() -> bool:
+    return find_portrait() is not None
+
+
+# --- the Discord side --------------------------------------------------------
+#
+# Both pushes below return (ok, why) rather than raising: the panel must be able
+# to say "saved on disk, but Discord refused" instead of a 500 with a traceback.
+
+
+def push_avatar() -> tuple[bool, str]:
+
     with _lock:
         loop, client = _loop, _client
     if loop is None or client is None:
@@ -118,6 +154,7 @@ def _patch_bot(key: str, value) -> None:
 
 
 def push_display_name() -> tuple[bool, str]:
+    
     with _lock:
         loop, client = _loop, _client
     if loop is None or client is None or client.user is None:
@@ -135,12 +172,13 @@ def push_display_name() -> tuple[bool, str]:
 
 
 def rename_in_files(old: str, new: str) -> list[str]:
+
     old = str(old or "").strip()
     new = str(new or "").strip()
     if not old or not new or old == new:
         return []
 
-    # Two chars is the floor: a one-letter name would rewrite half the file.
+    # Two chars is the floor: a one-letter "name" would rewrite half the file.
     if len(old) < 2:
         return []
 
@@ -159,8 +197,8 @@ def rename_in_files(old: str, new: str) -> list[str]:
             continue
         updated = text
         for before, after in forms.items():
-            # \b does not work around a name with a space, so this uses a lookaround
-            # on word characters.
+            # \b around a name containing a space does not work, so this uses a
+            # lookaround on word characters instead.
             pattern = re.compile(
                 rf"(?<![\w]){re.escape(before)}(?![\w])"
             )
@@ -175,14 +213,12 @@ def rename_in_files(old: str, new: str) -> list[str]:
 
 
 def connected() -> bool:
-    """Whether the bot is on its loop and logged in right now."""
     with _lock:
         loop, client = _loop, _client
     return loop is not None and client is not None and client.user is not None
 
 
 def discord_username() -> str:
-    """Her Discord username as it currently stands, or '' when not connected."""
     with _lock:
         client = _client
     if client is None:
@@ -192,19 +228,19 @@ def discord_username() -> str:
 
 
 def setup_state() -> dict:
-    """What the wizard needs to decide whether it is the first run."""
     from .config import provider_key_names
 
     providers = [p for p in (config["model"].get("providers") or [])
                  if isinstance(p, dict) and p.get("id")]
-    # An entry with no key is a shape, not a model: the file ships twenty free
-    # ids, so counting entries would report "configured" on a fresh clone.
+    # An entry with no key behind it is a shape, not a working model: the file
+    # ships twenty free model ids and none of them has a key until someone adds
+    # one, so counting entries would report "configured" on a fresh clone.
     keyed = [p for p in providers if provider_key_names(p)]
     return {
         "name": bot_name(),
         "hasPortrait": has_portrait(),
         "providers": len(providers),
         "hasWorkingModel": bool(keyed),
-        # The first entry with a key is the one she would talk on.
+        # The first entry with a key is the one she would actually talk on.
         "workingModel": str(keyed[0].get("model") or keyed[0].get("id")) if keyed else "",
     }
