@@ -11,7 +11,6 @@ name: Security Scan
 on:
   push:
     branches: [main]
-  pull_request:
   schedule:
     # Daily. Secret scanning is only useful before something is public, but a
     # leaked key on a public repo needs removing from history too - and that is

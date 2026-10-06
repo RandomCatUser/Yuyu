@@ -7,7 +7,6 @@ name: CodeQL
 on:
   push:
     branches: [main]
-  pull_request:
   schedule:
     # Sunday 03:17 UTC. Off the hour on purpose: everyone else's cron fires at
     # :00 and GitHub queues them behind each other.

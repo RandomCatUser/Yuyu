@@ -5,10 +5,12 @@ name: CI
 # This is the gate. Two independent jobs so a lint failure never hides a test
 # failure, and the fastest job reports first.
 
+# Main only. This project works on one branch, so a run per push to main plus a
+# manual trigger is the whole surface - no pull_request trigger, no staging
+# branch, nothing that fans out into extra branches.
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 # A new push to the same branch makes the in-flight run pointless.

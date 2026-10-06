@@ -11,12 +11,10 @@ name: Staging
 # Uses the GitHub `staging` environment, so secrets (if you ever add a throwaway
 # bot token) stay out of the workflow file.
 
+# Manual only. There is no staging branch - run this against main when you want
+# a clean-machine check, using the `staging` environment for any throwaway
+# secrets.
 on:
-  push:
-    branches: [staging]
-  pull_request:
-    branches: [staging]
-  # Manual, so this can be run against any branch before shipping it.
   workflow_dispatch:
 
 concurrency:
