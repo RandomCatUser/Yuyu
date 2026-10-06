@@ -28,12 +28,12 @@ jobs:
     # Force a fetch of full history: a secret committed long ago is still a
     # leaked secret, and the default shallow checkout cannot see it.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Scan history for secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITLEAKS_LICENSE }}
           # Fail the build on a finding instead of only annotating the PR.
@@ -43,9 +43,9 @@ jobs:
     name: Dependency audit (pip-audit)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
