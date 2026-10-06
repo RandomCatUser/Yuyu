@@ -1,0 +1,208 @@
+name: PR Assistant
+
+# The pull-request bot: labels every PR by where it changed, and checks the
+# title so the history stays readable.
+#
+# Only job types that need pull requests re-enabled these triggers - push-based
+# CI is unchanged. The title rules below are matched to the titles this repo
+# already uses ("Scope CI to main, drop dependabot"), so they reject placeholders
+# like "fix" without demanding conventional-commit syntax nobody here writes.
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+concurrency:
+  group: pr-assistant-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    name: Title check
+    runs-on: ubuntu-latest
+    # Needs write: the check annotates the PR with what it wants changed.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the pull request title
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const problems = [];
+
+            // 1. Readable length. Short enough to scan, long enough to be
+            //    specific. Their titles run up to 75 chars, so the ceiling is
+            //    generous - it exists to catch pasted paragraphs.
+            const length = [...title].length;
+            if (length < 10) {
+              problems.push(
+                `Too short (${length} chars). Say what changed, not just what - ` +
+                `"Stop shipping the quiet list", not "quiet list".`
+              );
+            }
+            if (length > 120) {
+              problems.push(
+                `Too long (${length} chars, limit 120). The body is where the detail goes.`
+              );
+            }
+
+            // 2. No trailing period. A title is a label, not a sentence.
+            if (/\.\s*$/.test(title)) {
+              problems.push('Remove the trailing period.');
+            }
+
+            // 3. Starts with a capital. Every existing title does; it keeps the
+            //    commits page scannable.
+            const first = title.trimStart()[0];
+            if (first && first !== first.toUpperCase()) {
+              problems.push('Start with a capital letter.');
+            }
+
+            // 4. Placeholder titles. These are the ones that make the history
+            //    useless six months later.
+            const placeholder = /^(wip|fix|bugfix|update|updates|change|changes|misc|misc\.|stuff|temp|test|testing|asdf|hello|stuff|update readme|minor|patch|revert fix)(\s+\S+)?$/i;
+            if (placeholder.test(title.trim())) {
+              problems.push(
+                `"${title.trim()}" is a placeholder. Describe the effect: ` +
+                `"Prevent the quiet list from being committed" rather than "fix".`
+              );
+            }
+
+            // 5. No WIP/draft markers. Draft PRs exist for that.
+            if (/^(wip|do not merge|dnm)\s*[:\-]/i.test(title)) {
+              problems.push('Remove the WIP marker and keep the PR in Draft instead.');
+            }
+
+            // 6. No leading/trailing whitespace - it usually means a paste.
+            if (title !== title.trim()) {
+              problems.push('Remove leading or trailing whitespace.');
+            }
+
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request.number;
+
+            const summary = [
+              '## Pull request title',
+              '',
+              '```' + title + '```',
+              '',
+              problems.length
+                ? '❌ **Needs changes**'
+                : '✅ **Title is good.**',
+            ];
+
+            if (problems.length) {
+              summary.push('', '| Problem | Fix |', '|---|---|');
+              for (const problem of problems) {
+                summary.push(`| ${problem} | See above |`);
+              }
+              summary.push(
+                '',
+                'Retitle by editing the pull request - this check reruns on `edited`.',
+                '',
+                'Titles this repo has already accepted:',
+                '',
+                '- `Scope CI to main, drop dependabot`',
+                '- `Stop shipping the quiet list`',
+                '- `Open-source Yuyu: strip personal data, add a first-run setup wizard`',
+              );
+            }
+
+            summary.push(
+              '',
+              '---',
+              'This check is non-blocking by design: it reports, but it does not',
+              'hold the branch protection rules on its own. Make it blocking in',
+              'Settings → Branches → Required checks if you want it enforced.',
+            );
+
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: context.payload.pull_request.head.sha,
+              // neutral, not failure, so this never blocks a merge on its own
+              state: problems.length ? 'pending' : 'success',
+              context: 'PR Assistant / title',
+              description: problems.length
+                ? `${problems.length} title problem${problems.length > 1 ? 's' : ''}`
+                : 'title looks good',
+            });
+
+            core.summary.addRaw(summary.join('\n'));
+            await core.summary.write();
+
+            if (problems.length) {
+              for (const problem of problems) {
+                core.warning(problem, { file: 'title' });
+              }
+            }
+
+  labels:
+    name: Auto-label
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # actions/labeler adds labels that already exist; a missing one is a 404
+      # and the job goes red. Create whatever is absent first, so a fresh clone
+      # or a deleted label never breaks the PR.
+      - name: Ensure every label exists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { readFileSync } = require('node:fs');
+            const labels = JSON.parse(readFileSync('.github/labels.json', 'utf8'));
+
+            const wanted = new Map(labels.map((l) => [l.name.toLowerCase(), l]));
+
+            const existing = await github.paginate(github.rest.issues.listLabelsForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            let created = 0;
+            for (const existingLabel of existing) {
+              wanted.delete(existingLabel.name.toLowerCase());
+            }
+
+            for (const label of wanted.values()) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ...label,
+                });
+                created += 1;
+              } catch (error) {
+                if (error.status !== 422) {
+                  core.setFailed(`${label.name}: ${error.message}`);
+                  return;
+                }
+              }
+            }
+            core.info(`${created} label(s) created on demand.`);
+
+      - name: Apply labels from changed files
+        uses: actions/labeler@v6
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          # Add only. sync-labels would strip labels someone applied by hand,
+          # and it would rip a label off the moment an unrelated file moves.
+          sync-labels: false
+          configuration-path: .github/labeler.yml

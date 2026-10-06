@@ -1,13 +1,16 @@
 name: CI
 
-# Development + testing lane. Runs on every push and pull request.
+# The gate. Three independent jobs, so a lint failure never hides a test
+# failure and neither hides a boot failure. The fastest job reports first.
 #
-# This is the gate. Two independent jobs so a lint failure never hides a test
-# failure, and the fastest job reports first.
+# Every failing job writes a job summary (.github/scripts/ci_report.py) before
+# it fails, because the default output for a genuinely broken build is a wall of
+# text that scrolls past the two numbers you actually wanted.
 
-# Main only. This project works on one branch, so a run per push to main plus a
-# manual trigger is the whole surface - no pull_request trigger, no staging
-# branch, nothing that fans out into extra branches.
+# Main only. A push to main plus a manual trigger is the whole surface - no
+# pull_request trigger, no staging branch, nothing that fans out into branches.
+# The PR bot lives separately in pr.yml, which does labels and title checks and
+# deliberately does not run this suite.
 on:
   push:
     branches: [main]
@@ -39,13 +42,32 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
 
-      # The rule set lives in ruff.toml at the repo root, not here - so that
-      # local runs and CI enforce exactly the same thing, and so it cannot drift
-      # when ruff changes its defaults between releases. Currently E9/F63/F7/F82:
+      # The rule set lives in ruff.toml at the repo root, not here - so local
+      # runs and CI enforce exactly the same thing, and it cannot drift when
+      # ruff changes its defaults between releases. Currently E9/F63/F7/F82:
       # syntax errors and undefined names, i.e. defects rather than style.
+      #
+      # continue-on-error so the summary below still runs; a later step
+      # re-raises the failure, so the job is still red.
       - name: Ruff
-        run: ruff check --no-cache .
+        id: ruff
+        continue-on-error: true
+        run: ruff check --no-cache --output-format=github .
 
+      - name: Summarise findings
+        if: always()
+        run: |
+          ruff check --no-cache --output-format=concise . > "$RUNNER_TEMP/ruff.log" || true
+          python .github/scripts/ci_report.py ruff --log "$RUNNER_TEMP/ruff.log" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when Ruff failed
+        if: steps.ruff.outcome == 'failure'
+        run: |
+          echo "::error::Ruff reported undefined names or syntax errors - see the job summary."
+          exit 1
+
+      # Advisory only: this project has never been reformatted wholesale, and a
+      # style diff should not hold up a build. It stays visible as a warning.
       - name: Ruff format check
         continue-on-error: true
         run: ruff format --check --diff .
@@ -78,14 +100,33 @@ jobs:
       # No provider keys are configured on purpose. The offline suite must pass
       # with zero secrets, and test_live.py skips itself unless
       # LLM_LIVE_TESTS=1. If a test starts needing a key to pass, it is testing
-      # the wrong thing and this job is where that gets caught.
+      # the wrong thing and this is where that gets caught.
+      #
+      # --tb=short keeps a trace usable; --junitxml feeds the summary; a failing
+      # run does not stop the summary from running.
       - name: Offline test suite
-        run: python -m pytest -q
+        id: tests
+        continue-on-error: true
+        run: |
+          python -m pytest -q --tb=short -rfE --junitxml="$RUNNER_TEMP/junit.xml"
+
+      - name: Summarise results
+        if: always()
+        run: |
+          python .github/scripts/ci_report.py pytest --junit "$RUNNER_TEMP/junit.xml" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::error::Offline test suite failed - see the job summary for failures grouped by cause."
+          exit 1
 
       # tests/test_dashboard.py syntax-checks the dashboard's inline module by
       # shelling out to `node --check` and skips when node is absent. ubuntu
-      # runners have node preinstalled, so that check actually runs here.
+      # runners have node preinstalled, so that check actually runs here rather
+      # than silently skipping.
       - name: Confirm the node-gated check is running, not silently skipping
+        if: always()
         run: |
           node --version
           python -m pytest tests/test_dashboard.py -q -k script_parses -rs
@@ -111,26 +152,40 @@ jobs:
       # blank .env. main.py talks to Discord on import, so every module is
       # imported directly instead.
       - name: Import every module
+        id: imports
+        continue-on-error: true
         run: |
           cp .env.example .env
-          python - <<'PY'
+          {
+            echo '### Module imports'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          set +e
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY" 2>&1
           import importlib, pkgutil, sys
           import yuyu
 
           failed = []
           for mod in pkgutil.walk_packages(yuyu.__path__, prefix="yuyu."):
-              name = mod.name
               try:
-                  importlib.import_module(name)
+                  importlib.import_module(mod.name)
               except Exception as exc:
-                  failed.append(f"{name}: {type(exc).__name__}: {exc}")
+                  failed.append(f"{mod.name}: {type(exc).__name__}: {exc}")
 
           if failed:
-              print("Modules that failed to import:\n")
-              print("\n".join(f"  {line}" for line in failed))
+              print(f"{len(failed)} module(s) failed to import:")
+              for line in failed:
+                  print(f"  {line}")
               sys.exit(1)
           print("all modules import cleanly")
           PY
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail when imports failed
+        if: steps.imports.outcome == 'failure'
+        run: |
+          echo "::error::Modules do not import - the package is not runnable. See the job summary."
+          exit 1
 
       - name: config.json is valid JSON and has the documented shape
         run: |
