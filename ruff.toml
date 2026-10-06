@@ -1,0 +1,34 @@
+# Lint configuration.
+#
+# The rule set is pinned deliberately. Ruff's *defaults* shift between releases,
+# which would silently change what CI blocks on - one upgrade could turn a green
+# run red over formatting, or the reverse. Anything meant to be enforced belongs
+# here explicitly.
+#
+# These are the rules that catch real defects, not style:
+#
+#   E9    syntax errors
+#   F63   faulty comparisons and assertions (is not / in / break outside loop)
+#   F7    syntax-adjacent problems (bare except, lambda assignment, bad loop var)
+#   F82   undefined names - a call to a function that does not exist, or a name
+#          used before assignment
+#
+# F82 is the one doing the real work here: it catches call sites written against
+# helpers that were never implemented, which is a NameError at runtime and
+# otherwise invisible until that code path runs.
+#
+# Style and formatting are deliberately excluded. `ruff format` is available and
+# runs non-blocking in CI; the project has never been reformatted wholesale, and
+# a 300-item style diff buried in the same output as genuine bugs would make the
+# lint job impossible to read.
+#
+# To turn a rule on, add it below and fix what it finds - do not add `--ignore`
+# flags to the CI command to quiet something you have not fixed.
+
+[lint]
+select = [
+    "E9",
+    "F63",
+    "F7",
+    "F82",
+]

@@ -39,11 +39,12 @@ jobs:
       - name: Install dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements-dev.txt
 
-      # ruff's default rule set: syntax errors and undefined names only. That
-      # is deliberate - it catches real breakage (a name that does not exist)
-      # without failing on style the project has never committed to.
+      # The rule set lives in ruff.toml at the repo root, not here - so that
+      # local runs and CI enforce exactly the same thing, and so it cannot drift
+      # when ruff changes its defaults between releases. Currently E9/F63/F7/F82:
+      # syntax errors and undefined names, i.e. defects rather than style.
       - name: Ruff
-        run: ruff check --output-format=github .
+        run: ruff check --no-cache .
 
       - name: Ruff format check
         continue-on-error: true
