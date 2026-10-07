@@ -19,6 +19,20 @@ _write_lock = threading.Lock()
 
 
 def _int(value) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _float(value) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _detail_tokens(usage: object, key: str, *path: str) -> int:
     node: object = usage
     for step in path:
         if not isinstance(node, dict):
@@ -67,9 +81,34 @@ def _lookup_price(provider: str, model: str) -> dict | None:
 
 
 def cost_of(provider: str, model: str, counts: dict) -> float | None:
+    """USD estimate for a call, or None when the provider/model has no price entry."""
+    if not config["usage"].get("enabled", True):
+        return None
+    price = _lookup_price(provider, model)
+    if price is None:
+        return None
+    return round(
+        (
+            _int(counts.get("prompt")) * _float(price.get("in"))
+            + _int(counts.get("completion")) * _float(price.get("out"))
+        )
+        / 1_000_000,
+        6,
+    )
+
+
+def record(
+    provider: str,
+    model: str,
+    counts: dict,
+    *,
+    source: str = "chat",
+    latency_ms: int | None = None,
+    streamed: bool = False,
+) -> None:
     if not config["usage"].get("enabled", True):
         return
-    counts = normalise(usage)
+    normal = normalise(counts)
     now = datetime.now(timezone.utc)
     entry = {
         "ts": now.timestamp() * 1000,
@@ -79,8 +118,8 @@ def cost_of(provider: str, model: str, counts: dict) -> float | None:
         "source": str(source or "chat"),
         "latencyMs": max(0, int(latency_ms or 0)),
         "streamed": bool(streamed),
-        **counts,
-        "cost": cost_of(str(provider or ""), str(model or ""), counts),
+        **normal,
+        "cost": cost_of(str(provider or ""), str(model or ""), normal),
     }
     line = json.dumps(entry, ensure_ascii=False)
     try:
@@ -93,10 +132,93 @@ def cost_of(provider: str, model: str, counts: dict) -> float | None:
         pass
 
 
+def _day_path(day: datetime) -> Path:
+    return USAGE_DIR / f"{day.strftime('%Y-%m-%d')}.jsonl"
+
+
+def _prune(now: datetime) -> None:
+    keep_from = (now - timedelta(days=KEEP_DAYS)).strftime("%Y-%m-%d")
+    try:
+        for path in USAGE_DIR.glob("*.jsonl"):
+            if path.stem < keep_from:
+                path.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 # reading
 
 
 def _iter_entries(days: int | None = None) -> list[dict]:
+    if days is None:
+        days = KEEP_DAYS
+    if days <= 0:
+        return []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).timestamp() * 1000
+    rows: list[dict] = []
+    try:
+        paths = sorted(USAGE_DIR.glob("*.jsonl"))
+    except OSError:
+        return rows
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict) and row.get("ts") is not None and _int(row.get("ts")) >= cutoff:
+                rows.append(row)
+    rows.sort(key=lambda row: _int(row.get("ts")))
+    return rows
+
+
+def _blank() -> dict:
+    return {
+        "prompt": 0,
+        "completion": 0,
+        "total": 0,
+        "cached": 0,
+        "reasoning": 0,
+        "latencyMs": 0,
+        "cost": 0.0,
+        "calls": 0,
+        "unpriced": 0,
+    }
+
+
+def _add(agg: dict, row: dict) -> None:
+    agg["prompt"] += _int(row.get("prompt"))
+    agg["completion"] += _int(row.get("completion"))
+    agg["total"] += _int(row.get("total"))
+    agg["cached"] += _int(row.get("cached"))
+    agg["reasoning"] += _int(row.get("reasoning"))
+    agg["latencyMs"] += _int(row.get("latencyMs"))
+    agg["calls"] += 1
+    cost = row.get("cost")
+    if cost is None:
+        agg["unpriced"] += 1
+    else:
+        try:
+            agg["cost"] += float(cost)
+        except (TypeError, ValueError):
+            agg["unpriced"] += 1
+
+
+def _mean_latency(bucket: dict) -> float:
+    calls = bucket.get("calls") or 0
+    if not calls:
+        return 0.0
+    return round((bucket.get("latencyMs") or 0) / calls, 1)
+
+
+def _derived(entries: list[dict], window: dict) -> dict:
     calls = window["calls"]
     if not calls:
         return {"tokensPerCall": 0, "outPerSecond": 0.0, "firstTs": None, "lastTs": None,
